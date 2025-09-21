@@ -1,12 +1,50 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { packsMeta } from '@/data/packs';
+import { getPackById } from '@/lib/content';
+import { getPackProgressSummary } from '@/lib/storage';
 import type { LevelConfig } from '@/lib/types';
+import { useFocusEffect } from '@react-navigation/native';
 import { Link, useRouter } from 'expo-router';
-import { FlatList, Pressable, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { FlatList, Pressable, RefreshControl, View } from 'react-native';
+
+type ProgressMap = Record<string, { mastered: number; total: number }>;
 
 export default function HomeScreen() {
   const router = useRouter();
+  const [progress, setProgress] = useState<ProgressMap>({});
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadProgress = useCallback(async () => {
+    const map: ProgressMap = {};
+    for (const m of packsMeta) {
+      const pack = getPackById(m.id)!;
+      map[m.id] = await getPackProgressSummary(pack);
+    }
+    setProgress(map);
+  }, []);
+
+  // 1) Подгружаем прогресс каждый раз при фокусе Home
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
+      (async () => {
+        await loadProgress();
+      })();
+      return () => { mounted = false; };
+    }, [loadProgress])
+  );
+
+  // 2) Pull-to-refresh (опционально)
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadProgress();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadProgress]);
 
   const defaultLevel: LevelConfig = {
     durationSec: 60,
@@ -27,61 +65,40 @@ export default function HomeScreen() {
         </Link>
       </View>
 
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => {
-          const pack = packsMeta[0];
-          router.push({
-            pathname: '/pack/[packId]',
-            params: { packId: pack.id },
-          });
-        }}
-        style={{
-          padding: 12,
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: '#ccc',
-        }}
+      <Link
+        href={{ pathname: '/pack/[packId]', params: { packId: packsMeta[0].id } }}
+        asChild
       >
-        <ThemedText type="defaultSemiBold">Быстрый старт</ThemedText>
-        <ThemedText>Последний пак: {packsMeta[0]?.title}</ThemedText>
-      </Pressable>
+        <Pressable style={{ padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#ccc' }}>
+          <ThemedText type="defaultSemiBold">Быстрый старт</ThemedText>
+          <ThemedText>Последний пак: {packsMeta[0]?.title}</ThemedText>
+        </Pressable>
+      </Link>
 
       <ThemedText type="subtitle">Паки</ThemedText>
       <FlatList
         data={packsMeta}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ gap: 12 }}
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() => router.push({ pathname: '/pack/[packId]', params: { packId: item.id } })}
-            style={{
-              padding: 16,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: '#ddd',
-            }}
-          >
-            <ThemedText type="defaultSemiBold">{item.title}</ThemedText>
-            <ThemedText>CEFR: {item.cefr} • Слов: {item.lexemeCount}</ThemedText>
-            <ThemedText>Прогресс: {item.progress?.mastered ?? 0}/{item.progress?.total ?? item.lexemeCount}</ThemedText>
-          </Pressable>
-        )}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        renderItem={({ item }) => {
+          const p = progress[item.id];
+          return (
+            <Link
+              href={{ pathname: '/pack/[packId]', params: { packId: item.id } }}
+              asChild
+            >
+              <Pressable style={{ padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#ddd' }}>
+                <ThemedText type="defaultSemiBold">{item.title}</ThemedText>
+                <ThemedText>CEFR: {item.cefr} • Слов: {item.lexemeCount}</ThemedText>
+                <ThemedText>
+                  Прогресс: {p ? `${p.mastered}/${p.total}` : '—'}
+                </ThemedText>
+              </Pressable>
+            </Link>
+          );
+        }}
       />
-
-      <Link href="/dictionary" asChild>
-        <Pressable
-          style={{
-            padding: 12,
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: '#ccc',
-            alignItems: 'center',
-          }}
-        >
-          <ThemedText>Открыть словарь</ThemedText>
-        </Pressable>
-      </Link>
     </ThemedView>
   );
 }

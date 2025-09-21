@@ -1,12 +1,16 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { getPackById } from '@/lib/content';
+import { applySessionSummary } from '@/lib/storage';
 import type { RunSummary } from '@/lib/types';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 export default function ResultScreen() {
   const { summary } = useLocalSearchParams<{ summary?: string }>();
   const router = useRouter();
+  const [saved, setSaved] = useState(false);
 
   let data: RunSummary | null = null;
   try {
@@ -15,8 +19,21 @@ export default function ResultScreen() {
     data = null;
   }
 
-  const packId = data?.packId ?? 'unknown-pack';
+  const packId = data?.packId ?? 'pack-basic-1';
+  const pack = getPackById(packId)!;
   const levelStr = data ? encodeURIComponent(JSON.stringify(data.level)) : undefined;
+
+  // Сохраняем прогресс/историю один раз
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (data && !saved) {
+        await applySessionSummary(pack, data);
+        if (mounted) setSaved(true);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [data, pack, saved]);
 
   return (
     <ThemedView style={{ flex: 1, gap: 16, padding: 16 }}>
@@ -25,6 +42,7 @@ export default function ResultScreen() {
         <ThemedText>Очки: {data?.score ?? 0}</ThemedText>
         <ThemedText>Точность: {Math.round((data?.accuracy ?? 0) * 100)}%</ThemedText>
         <ThemedText>Ошибок: {data?.errors?.length ?? 0}</ThemedText>
+        <ThemedText>{saved ? 'Прогресс сохранён офлайн' : 'Сохраняем...'}</ThemedText>
       </View>
 
       <View style={{ gap: 8 }}>
