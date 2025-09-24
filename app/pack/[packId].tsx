@@ -1,11 +1,17 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getPackById } from '@/lib/content';
-import { getPackProgressSummary } from '@/lib/storage';
+import { getPackAdaptive, getPackProgressSummary, getRecommendedLevelNext } from '@/lib/storage';
 import type { LevelConfig } from '@/lib/types';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
+
+const modeLabel: Record<'easy'|'normal'|'hard', string> = {
+  easy: 'проще (менее похожие дистракторы)',
+  normal: 'нормально',
+  hard: 'сложнее (похожие дистракторы)',
+};
 
 export default function PackDetailsScreen() {
   const { packId } = useLocalSearchParams<{ packId: string }>();
@@ -14,17 +20,27 @@ export default function PackDetailsScreen() {
 
   const [progress, setProgress] = useState<{ mastered: number; total: number } | null>(null);
 
+  // адаптивная рекомендация уровня + режим дистракторов
+  const [recommendedLevel, setRecommendedLevel] = useState<LevelConfig>(pack.levelDefaults);
+  const [distractorMode, setDistractorMode] = useState<'easy'|'normal'|'hard'>('normal');
+
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const p = await getPackProgressSummary(pack);
-      if (mounted) setProgress(p);
+      const [p, adaptive] = await Promise.all([
+        getPackProgressSummary(pack),
+        getPackAdaptive(pack.id),
+      ]);
+      if (!mounted) return;
+
+      setProgress(p);
+
+      const rec = getRecommendedLevelNext(pack.levelDefaults, adaptive);
+      setRecommendedLevel(rec.level);
+      setDistractorMode(rec.distractorMode);
     })();
     return () => { mounted = false; };
   }, [pack]);
-
-  const recommendedLevel: LevelConfig = pack.levelDefaults;
-  const levelStr = encodeURIComponent(JSON.stringify(recommendedLevel));
 
   return (
     <ThemedView style={{ flex: 1, gap: 16, padding: 16 }}>
@@ -41,11 +57,13 @@ export default function PackDetailsScreen() {
         <ThemedText>Развилка каждые: {recommendedLevel.forkEverySec}s</ThemedText>
         <ThemedText>Дорожки: {recommendedLevel.lanes}</ThemedText>
         <ThemedText>Жизни: {recommendedLevel.lives}</ThemedText>
+        <ThemedText>Дистракторы: {modeLabel[distractorMode]}</ThemedText>
       </View>
 
       <Pressable
         accessibilityRole="button"
-        onPress={() =>
+        onPress={() => {
+          const levelStr = encodeURIComponent(JSON.stringify(recommendedLevel));
           router.push({
             pathname: '/run',
             params: {
@@ -53,15 +71,17 @@ export default function PackDetailsScreen() {
               level: levelStr,
               seed: `${pack.id}-seed-demo`,
               mode: 'normal',
+              distractorMode,
             },
-          })
-        }
+          });
+        }}
         style={{ padding: 16, borderRadius: 12, backgroundColor: '#2f80ed', alignItems: 'center' }}
       >
         <ThemedText style={{ color: 'white' }}>Играть</ThemedText>
       </Pressable>
 
-      <Link href="/dictionary" asChild>
+      {/* 🔹 Передаём packId в словарь */}
+      <Link href={{ pathname: '/dictionary', params: { packId: pack.id } }} asChild>
         <Pressable style={{ padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#ccc', alignItems: 'center' }}>
           <ThemedText>Словарь пака</ThemedText>
         </Pressable>

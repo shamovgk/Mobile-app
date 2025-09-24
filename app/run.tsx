@@ -2,129 +2,160 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getPackById } from '@/lib/content';
 import { buildSessionPlan } from '@/lib/engine';
+import { mulberry32, shuffleInPlace } from '@/lib/random';
 import { applyAnswer, defaultScore } from '@/lib/scoring';
 import { sfxDispose, sfxFail, sfxInit, sfxOk } from '@/lib/sfx';
 import type { LevelConfig, RunSummary } from '@/lib/types';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, AppState, BackHandler, Easing, Modal, Pressable, Text, View } from 'react-native';
-import { State as GHState, PanGestureHandler, PanGestureHandlerGestureEvent } from 'react-native-gesture-handler';
+import { Animated, AppState, BackHandler, Modal, Pressable, Text, View } from 'react-native';
+
+const STUN_MS = 2000;
+const BONUS_PER_SEC = 50;
 
 export default function RunScreen() {
-  const { packId, level, seed, mode } = useLocalSearchParams<{
+  const { packId, level, seed, mode, repeat, distractorMode } = useLocalSearchParams<{
     packId: string;
     level: string;
     seed?: string;
     mode?: 'normal' | 'review';
+    repeat?: string; // URI-encoded JSON: string[]
+    distractorMode?: 'easy' | 'normal' | 'hard';
   }>();
   const router = useRouter();
   const navigation = useNavigation();
 
   const levelConfig: LevelConfig = useMemo(() => {
-    try {
-      return JSON.parse(decodeURIComponent(level ?? '')) as LevelConfig;
-    } catch {
-      return { durationSec: 60, forkEverySec: 2.5, lanes: 2, allowedTypes: ['meaning'], lives: 3 };
-    }
+    try { return JSON.parse(decodeURIComponent(level ?? '')) as LevelConfig; }
+    catch { return { durationSec: 60, forkEverySec: 2.5, lanes: 2, allowedTypes: ['meaning'], lives: 3 }; }
   }, [level]);
 
   const pack = getPackById((packId as string) ?? 'pack-basic-1')!;
   const sessionSeed = (seed as string) ?? `${pack.id}-seed-default`;
+  const isReviewMode = mode === 'review';
 
-  // План сессии
-  const plan = useMemo(() => buildSessionPlan({ pack, level: levelConfig, seed: sessionSeed }), [pack, levelConfig, sessionSeed]);
+  // repeatSet (для «Повторить ошибки»)
+  const repeatSet: string[] | null = useMemo(() => {
+    if (!repeat) return null;
+    try { return JSON.parse(decodeURIComponent(repeat)) as string[]; }
+    catch { return null; }
+  }, [repeat]);
 
-  // HUD
-  const [scoreState, setScoreState] = useState(() => defaultScore(levelConfig.lives));
-  const [timerLeft, setTimerLeft] = useState(levelConfig.durationSec);
+  // В режиме review можно сделать короткую сессию — но отдаём контроль Duration экрану Result.
+  const effectiveLevel: LevelConfig = useMemo(() => {
+    if (isReviewMode && repeatSet && repeatSet.length > 0) {
+      const suggested = Math.min(60, Math.max(15, repeatSet.length * 5));
+      return { ...levelConfig, durationSec: suggested };
+    }
+    return levelConfig;
+  }, [isReviewMode, repeatSet, levelConfig]);
 
-  // Состояние сессии/паузы
+  // План: обычный — все слова; review — только из repeatSet
+  const plan = useMemo(
+    () => buildSessionPlan({
+      pack,
+      level: effectiveLevel,
+      seed: sessionSeed,
+      restrictLexemes: (isReviewMode && repeatSet && repeatSet.length > 0) ? repeatSet : undefined,
+      distractorMode: (distractorMode as 'easy'|'normal'|'hard') ?? 'normal', // 🔹 учитываем режим
+    }),
+    [pack, effectiveLevel, sessionSeed, isReviewMode, repeatSet, distractorMode]
+  );
+
+  // HUD/состояния
+  const [scoreState, setScoreState] = useState(() => defaultScore());
+  const scoreRef = useRef(scoreState);
+  useEffect(() => { scoreRef.current = scoreState; }, [scoreState]);
+
+  // максимум комбо (для статистики)
+  const comboMaxRef = useRef<number>(0);
+  useEffect(() => {
+    if (scoreState.combo > comboMaxRef.current) comboMaxRef.current = scoreState.combo;
+  }, [scoreState.combo]);
+
+  const [timerLeft, setTimerLeft] = useState(effectiveLevel.durationSec);
   const sessionActiveRef = useRef(true);
   const [isPaused, setPaused] = useState(false);
+  const [slotIdx, _setSlotIdx] = useState(0);
+  const slotIdxRef = useRef(0);
+  const setSlotIdx = (v: number | ((n: number) => number)) => {
+    _setSlotIdx(prev => {
+      const next = typeof v === 'function' ? (v as any)(prev) : v;
+      slotIdxRef.current = next;
+      // при смене слова — сбрасываем попытки
+      attemptsForCurrentRef.current = 0;
+      return next;
+    });
+  };
 
-  // Текущий слот и «окно ответа»
-  const [slotIdx, setSlotIdx] = useState(0);
-  const answeredRef = useRef(false); // был ли ответ в текущем слоте
+  // Текущие варианты для рендера + явная подсветка выбора
+  const [options, setOptions] = useState(() => plan.slots[0]?.options ?? []);
+  const [highlight, setHighlight] = useState<{ index: number; correct: boolean } | null>(null);
 
-  // Анимации: карточка и подсветки дорожек
-  const cardTranslateX = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const next = plan.slots[Math.min(slotIdx, plan.slots.length - 1)]?.options ?? [];
+    setOptions([...next]);
+    setHighlight(null);
+  }, [slotIdx, plan.slots]);
+
+  // Оглушение
+  const stunnedUntilRef = useRef<number>(0);
+  const [stunLeft, setStunLeft] = useState(0);
+
+  // Визуальные эффекты
   const cardOpacity = useRef(new Animated.Value(1)).current;
-  const lanePulse = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
 
-  // Инициализация аудио/вибро
-  useEffect(() => {
-    sfxInit();
-    return () => { sfxDispose(); };
-  }, []);
+  // Аудио/вибро
+  useEffect(() => { sfxInit(); return () => { sfxDispose(); }; }, []);
 
-  // Блокируем уход: только пауза/finish
+  // Запрет выхода
   useEffect(() => {
-    const backSub = BackHandler.addEventListener('hardwareBackPress', () => {
-      setPaused(true);
-      return true;
-    });
-    const beforeRemove = navigation.addListener('beforeRemove', (e) => {
-      if (!sessionActiveRef.current) return;
-      e.preventDefault();
-      setPaused(true);
-    });
-    return () => {
-      backSub.remove();
-      beforeRemove();
-    };
+    const backSub = BackHandler.addEventListener('hardwareBackPress', () => { setPaused(true); return true; });
+    const beforeRemove = navigation.addListener('beforeRemove', (e) => { if (!sessionActiveRef.current) return; e.preventDefault(); setPaused(true); });
+    return () => { backSub.remove(); beforeRemove(); };
   }, [navigation]);
 
-  // Автопауза при сворачивании
+  // Автопауза
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'background' || state === 'inactive') setPaused(true);
-    });
+    const sub = AppState.addEventListener('change', (s) => { if (s === 'background' || s === 'inactive') setPaused(true); });
     return () => sub.remove();
   }, []);
 
-  // Таймер слотов: шаги по forkEverySec, автопромах если не ответили
+  // Глобальный таймер: фикс. старт + учёт пауз (НЕ зависит от ответов)
+  const startRef = useRef<number>(Date.now());
+  const pausedAccumRef = useRef<number>(0);
+  const pauseStartRef = useRef<number | null>(null);
+  const durationMs = effectiveLevel.durationSec * 1000;
+
+  useEffect(() => {
+    const now = Date.now();
+    if (isPaused) {
+      if (pauseStartRef.current == null) pauseStartRef.current = now;
+    } else {
+      if (pauseStartRef.current != null) {
+        pausedAccumRef.current += now - pauseStartRef.current;
+        pauseStartRef.current = null;
+      }
+    }
+  }, [isPaused]);
+
   useEffect(() => {
     if (!sessionActiveRef.current || isPaused) return;
-
     let raf = 0;
-    const startedAt = Date.now();
-    const durationMs = levelConfig.durationSec * 1000;
-    const stepMs = Math.max(250, levelConfig.forkEverySec * 1000);
-    let nextSlotTime = stepMs;
-    let lastTick = startedAt;
-
-    const missCurrentIfNeeded = () => {
-      if (!answeredRef.current) {
-        const curSlot = plan.slots[slotIdx];
-        // промах
-        setScoreState((st) => applyAnswer(st, false, curSlot.lexemeId));
-        pulseLane(curSlot, null); // нейтрально
-        // мягкое «аттенюация» карточки
-        feedbackCard(0);
-      }
-      answeredRef.current = false;
-    };
 
     const loop = () => {
       const now = Date.now();
-      const elapsed = now - startedAt;
-      const dt = now - lastTick;
-      lastTick = now;
+      const pausedNow = pausedAccumRef.current + (pauseStartRef.current ? now - pauseStartRef.current : 0);
+      const elapsed = now - startRef.current - pausedNow;
+      const leftSec = Math.max(0, Math.ceil((durationMs - elapsed) / 1000));
+      setTimerLeft(leftSec);
 
-      // таймер
-      setTimerLeft(Math.max(0, Math.ceil((durationMs - elapsed) / 1000)));
+      // тик оглушения для UI
+      const stunLeftMs = Math.max(0, stunnedUntilRef.current - now);
+      setStunLeft(Math.ceil(stunLeftMs / 100) / 10);
 
-      // переходы по временным меткам
-      while (elapsed >= nextSlotTime) {
-        // если не ответили — считаем промах
-        missCurrentIfNeeded();
-        // следующий слот
-        setSlotIdx((s) => Math.min(plan.slots.length - 1, s + 1));
-        nextSlotTime += stepMs;
-      }
-
-      if (elapsed >= durationMs || scoreState.lives <= 0) {
-        finishSession();
+      if (elapsed >= durationMs) {
+        finishSession(); // время вышло
         return;
       }
       raf = requestAnimationFrame(loop);
@@ -132,103 +163,118 @@ export default function RunScreen() {
 
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPaused, plan.slots.length, levelConfig.durationSec, levelConfig.forkEverySec, slotIdx, scoreState.lives]);
+  }, [isPaused, durationMs]);
+
+  const remainingSeconds = () => {
+    const now = Date.now();
+    const pausedNow = pausedAccumRef.current + (pauseStartRef.current ? now - pauseStartRef.current : 0);
+    const elapsed = now - startRef.current - pausedNow;
+    return Math.max(0, Math.ceil((durationMs - elapsed) / 1000));
+  };
+
+  const triggerStun = (now = Date.now()) => { stunnedUntilRef.current = now + STUN_MS; };
 
   const resumeRun = () => setPaused(false);
-  const exitRun = () => {
-    sessionActiveRef.current = false;
-    router.back();
-  };
+  const exitRun = () => { sessionActiveRef.current = false; router.back(); };
 
-  const finishSession = () => {
+  // Учёт ответов по словам (для SRS и Result)
+  const answersRef = useRef<RunSummary['answers']>([]);
+  const attemptsForCurrentRef = useRef<number>(0);
+
+  const finishSession = (extraScore = 0) => {
     if (!sessionActiveRef.current) return;
     sessionActiveRef.current = false;
-    const accuracy = scoreState.total > 0 ? scoreState.correct / scoreState.total : 0;
+    const finalScore = scoreRef.current.score + extraScore;
+    const accuracy = scoreRef.current.total > 0 ? scoreRef.current.correct / scoreRef.current.total : 0;
+
     const summary: RunSummary = {
       packId: pack.id,
-      score: scoreState.score,
+      score: finalScore,
       accuracy,
-      errors: scoreState.errors.map((lexemeId) => ({ lexemeId })),
-      durationPlayedSec: levelConfig.durationSec - timerLeft,
+      errors: Array.from(new Set(scoreRef.current.errors)).map((lexemeId) => ({ lexemeId })),
+      durationPlayedSec: effectiveLevel.durationSec - Math.max(0, timerLeft),
       seed: sessionSeed,
-      level: levelConfig,
+      level: effectiveLevel,
+      answers: answersRef.current ?? [],
+      timeBonus: extraScore > 0 ? extraScore : 0,
+      comboMax: comboMaxRef.current,
     };
-    router.replace({
-      pathname: '/result',
-      params: { summary: encodeURIComponent(JSON.stringify(summary)) },
-    });
+
+    router.replace({ pathname: '/result', params: { summary: encodeURIComponent(JSON.stringify(summary)) } });
   };
 
-  // Анимация карточки: сдвиг и затухание при ответе
-  const feedbackCard = (dir: -1 | 0 | 1) => {
-    cardTranslateX.stopAnimation();
+  // Эффекты UI
+  const blinkCard = () => {
     cardOpacity.stopAnimation();
-    const toX = dir === 0 ? 0 : dir * 40; // небольшой сдвиг
-    Animated.parallel([
-      Animated.timing(cardTranslateX, { toValue: toX, duration: 160, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      Animated.sequence([
-        Animated.timing(cardOpacity, { toValue: 0.85, duration: 120, useNativeDriver: true }),
-        Animated.timing(cardOpacity, { toValue: 1, duration: 120, useNativeDriver: true }),
-      ]),
+    Animated.sequence([
+      Animated.timing(cardOpacity, { toValue: 0.85, duration: 120, useNativeDriver: true }),
+      Animated.timing(cardOpacity, { toValue: 1, duration: 120, useNativeDriver: true }),
     ]).start();
   };
 
-  // Подсветка выбранной/промахнутой дорожки
-  const pulseLane = (slot: (typeof plan.slots)[number], pickedIndex: number | null) => {
-    lanePulse.forEach((v, idx) => {
-      const active = pickedIndex === null ? false : idx === pickedIndex;
-      v.stopAnimation();
-      v.setValue(0);
-      Animated.timing(v, { toValue: active ? 1 : 0.4, duration: 160, useNativeDriver: false }).start(() => {
-        Animated.timing(v, { toValue: 0, duration: 200, useNativeDriver: false }).start();
-      });
-    });
-  };
-
-  // Обработка свайпов (лево/право)
-  const onGestureEvent = ({ nativeEvent }: PanGestureHandlerGestureEvent) => {
-    // визуальный параллакс карточки
-    const delta = Math.max(-60, Math.min(60, nativeEvent.translationX));
-    cardTranslateX.setValue(delta * 0.2);
-  };
-
-  const onHandlerStateChange = ({ nativeEvent }: PanGestureHandlerGestureEvent) => {
-    if (!sessionActiveRef.current || isPaused) return;
-
-    if ((nativeEvent as any).state === GHState.END || (nativeEvent as any).state === GHState.CANCELLED || (nativeEvent as any).state === GHState.FAILED) {
-      const dx = nativeEvent.translationX;
-      // Порог распознавания
-      if (Math.abs(dx) < 60) {
-        feedbackCard(0);
-        return;
-      }
-      const pick = dx < 0 ? 0 : 1; // 2 дорожки: 0 — левая, 1 — правая
-      answerPick(pick);
-    }
-  };
-
   const answerPick = async (laneIndex: 0 | 1) => {
-    if (answeredRef.current) return; // уже ответили в этом слоте
-    const slot = plan.slots[slotIdx];
-    const opt = slot.options[laneIndex];
-    const isCorrect = !!opt?.isCorrect;
+    const now = Date.now();
+    if (now < stunnedUntilRef.current) return;
+    if (slotIdxRef.current >= plan.slots.length) return;
 
-    answeredRef.current = true;
+    const slot = plan.slots[slotIdxRef.current];
+    const opt = options?.[laneIndex];
+    if (!slot || !opt) return;
 
+    const isCorrect = !!opt.isCorrect;
     setScoreState((st) => applyAnswer(st, isCorrect, slot.lexemeId));
-    pulseLane(slot, laneIndex);
-    feedbackCard(isCorrect ? (laneIndex === 0 ? -1 : 1) : 0);
-    if (isCorrect) await sfxOk(true);
-    else await sfxFail(true);
+    blinkCard();
 
-    // Ранний переход к следующему слоту (чуть быстрее, чем таймер)
-    if (slotIdx < plan.slots.length - 1) {
-      setTimeout(() => setSlotIdx((s) => Math.min(plan.slots.length - 1, s + 1)), 100);
+    if (isCorrect) {
+      setHighlight({ index: laneIndex, correct: true });
+      await sfxOk(true);
+
+      // записываем итоги по слову (одна запись на слово)
+      const attempts = attemptsForCurrentRef.current + 1;
+      answersRef.current = [
+        ...(answersRef.current ?? []),
+        {
+          lexemeId: slot.lexemeId,
+          isCorrect: attempts === 1, // верно с первой попытки
+          attempts,
+          usedHint: false,
+          timeToAnswerMs: 0, // в MVP не считаем точно
+        },
+      ];
+      attemptsForCurrentRef.current = 0; // сброс для следующего слова
+
+      // Короткая задержка, чтобы игрок увидел зелёный
+      setTimeout(() => {
+        setHighlight(null);
+        const next = slotIdxRef.current + 1;
+        setSlotIdx(next);
+        if (next >= plan.slots.length) {
+          const bonus = remainingSeconds() * BONUS_PER_SEC;
+          finishSession(bonus);
+        }
+      }, 250);
+    } else {
+      setHighlight({ index: laneIndex, correct: false });
+      await sfxFail(true);
+      triggerStun(now);
+
+      // накапливаем попытки на это слово
+      attemptsForCurrentRef.current += 1;
+
+      // Перетасовка вариантов для текущего слова
+      setOptions((prev) => {
+        const copy = [...prev];
+        shuffleInPlace(copy, mulberry32(now)); // сидим текущим временем
+        return copy;
+      });
+
+      // Снятие красной подсветки чуть позже
+      setTimeout(() => setHighlight(null), 400);
+      // остаёмся на том же слове
     }
   };
 
-  const slot = plan.slots[slotIdx];
+  const slot = plan.slots[Math.min(slotIdx, plan.slots.length - 1)];
 
   return (
     <ThemedView style={{ flex: 1, padding: 16, gap: 16 }}>
@@ -236,9 +282,7 @@ export default function RunScreen() {
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <ThemedText>Score: {scoreState.score}</ThemedText>
         <ThemedText>Combo: x{scoreState.comboMul.toFixed(1)}</ThemedText>
-        <ThemedText>♥ {scoreState.lives}</ThemedText>
         <ThemedText>⏱ {timerLeft}s</ThemedText>
-
         <Pressable
           accessibilityRole="button"
           onPress={() => setPaused(true)}
@@ -248,65 +292,72 @@ export default function RunScreen() {
         </Pressable>
       </View>
 
-      {/* Инфо о плане (можно скрыть позже) */}
+      {/* Статус */}
       <View style={{ padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#eee' }}>
-        <ThemedText>Слотов: {plan.summary.totalSlots} • Дорожек: {plan.summary.lanes}</ThemedText>
-        <ThemedText>Слот: {slotIdx + 1}/{plan.slots.length}</ThemedText>
+        <ThemedText>Слово: {Math.min(slotIdx + 1, plan.slots.length)} / {plan.slots.length}</ThemedText>
+        {stunnedUntilRef.current > Date.now() && (
+          <ThemedText>⛔ Оглушение: ещё ~{stunLeft.toFixed(1)} c</ThemedText>
+        )}
       </View>
 
-      {/* Жест на всю зону карточки/дорожек */}
-      <PanGestureHandler onGestureEvent={onGestureEvent} onHandlerStateChange={onHandlerStateChange}>
-        <Animated.View style={{ flex: 1 }}>
-          {/* Карточка вопроса */}
-          <Animated.View
-            style={{
-              padding: 16,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: '#ddd',
-              gap: 8,
-              transform: [{ translateX: cardTranslateX }],
-              opacity: cardOpacity,
-            }}
-          >
-            <ThemedText type="defaultSemiBold">Слово: “{slot.prompt}”</ThemedText>
-            <ThemedText>Свайп влево/вправо, чтобы выбрать дорожку</ThemedText>
-          </Animated.View>
+      {/* Карточка */}
+      <Animated.View
+        style={{
+          padding: 16,
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: '#ddd',
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: cardOpacity,
+        }}
+      >
+        <ThemedText style={{ fontSize: 28, fontWeight: '700' }}>
+          {slot.prompt}
+        </ThemedText>
+        <ThemedText style={{ marginTop: 6, opacity: 0.7 }}>тапни на перевод</ThemedText>
+      </Animated.View>
 
-          {/* Дорожки */}
-          <View style={{ flex: 1, flexDirection: 'row', gap: 12, marginTop: 12 }}>
-            {slot.options.map((opt, i) => {
-              const bg = lanePulse[i].interpolate({
-                inputRange: [0, 1],
-                outputRange: ['#FFFFFF', opt.isCorrect ? '#DFFFE0' : '#FFDADA'],
-              });
-              return (
-                <Animated.View
-                  key={`${slot.index}-${i}-${opt.id}`}
-                  style={{
-                    flex: 1,
-                    borderWidth: 1,
-                    borderColor: '#ccc',
-                    borderRadius: 12,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    padding: 8,
-                    backgroundColor: bg as any,
-                  }}
-                >
-                  <ThemedText>Дорожка {i + 1}</ThemedText>
-                  <ThemedText>(вариант) {opt.id}</ThemedText>
-                </Animated.View>
-              );
-            })}
-          </View>
-        </Animated.View>
-      </PanGestureHandler>
+      {/* Варианты */}
+      <View style={{ flex: 1, flexDirection: 'row', gap: 12, marginTop: 12 }}>
+        {options.map((opt, i) => {
+          // ЯВНАЯ подсветка выбранного варианта
+          let bgColor = '#FFFFFF';
+          if (highlight && highlight.index === i) {
+            bgColor = highlight.correct ? '#27ae60' : '#eb5757'; // зелёный / красный
+          }
 
-      {/* Досрочное завершение (отладка) */}
+          return (
+            <View
+              key={`${slot.index}-${i}-${opt.id}`}
+              style={{
+                flex: 1,
+                borderWidth: 1,
+                borderColor: '#ccc',
+                borderRadius: 16,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: bgColor,
+              }}
+            >
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => answerPick(i as 0 | 1)}
+                style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 8 }}
+              >
+                <Text style={{ fontSize: 24, fontWeight: '700', textAlign: 'center' }}>
+                  {opt.id}
+                </Text>
+              </Pressable>
+            </View>
+          );
+        })}
+      </View>
+
+      {/* Завершить (отладка) */}
       <Pressable
         accessibilityRole="button"
-        onPress={finishSession}
+        onPress={() => finishSession()}
         style={{ padding: 16, borderRadius: 12, backgroundColor: '#27ae60', alignItems: 'center' }}
       >
         <ThemedText style={{ color: 'white' }}>Завершить (демо)</ThemedText>
@@ -314,36 +365,17 @@ export default function RunScreen() {
 
       {/* Пауза */}
       <Modal transparent visible={isPaused} animationType="fade" onRequestClose={resumeRun}>
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: 24,
-          }}
-        >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
           <View style={{ width: '100%', maxWidth: 420, backgroundColor: 'white', borderRadius: 16, padding: 20, gap: 12 }}>
             <Text style={{ fontSize: 20, fontWeight: '600', textAlign: 'center' }}>Пауза</Text>
             <Text style={{ textAlign: 'center' }}>Игра на паузе. Вы можете продолжить или выйти.</Text>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={resumeRun}
-              style={{ padding: 14, borderRadius: 12, backgroundColor: '#2f80ed', alignItems: 'center' }}
-            >
+            <Pressable accessibilityRole="button" onPress={resumeRun} style={{ padding: 14, borderRadius: 12, backgroundColor: '#2f80ed', alignItems: 'center' }}>
               <Text style={{ color: 'white', fontWeight: '600' }}>Продолжить</Text>
             </Pressable>
-
             <View style={{ padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#f2c94c' }}>
               <Text style={{ textAlign: 'center' }}>⚠️ При выходе текущий прогресс забега будет потерян.</Text>
             </View>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={exitRun}
-              style={{ padding: 14, borderRadius: 12, backgroundColor: '#eb5757', alignItems: 'center' }}
-            >
+            <Pressable accessibilityRole="button" onPress={exitRun} style={{ padding: 14, borderRadius: 12, backgroundColor: '#eb5757', alignItems: 'center' }}>
               <Text style={{ color: 'white', fontWeight: '700' }}>Выйти из забега</Text>
             </Pressable>
           </View>

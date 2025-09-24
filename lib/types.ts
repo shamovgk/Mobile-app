@@ -8,6 +8,9 @@ export type LevelConfig = {
   lives: number;
 };
 
+// 🔹 режим похожести дистракторов
+export type DistractorMode = 'easy' | 'normal' | 'hard';
+
 export type Distractors = {
   meaning?: string[];
   image?: string[];        // имена ассетов или id
@@ -25,9 +28,8 @@ export type Lexeme = {
   translations: string[];
   examples: string[];
   distractors: Distractors;
-  // прогресс по умолчанию из JSON; актуальный прогресс берём из Storage
   mastery: number;            // 0..5
-  recentMistakes: string[];   // ISO timestamps (короткая история)
+  recentMistakes: string[];   // ISO timestamps
 };
 
 export type Pack = {
@@ -47,6 +49,7 @@ export type PackMeta = {
   lexemeCount: number;
 };
 
+/** Итог сессии (Этап 5) */
 export type RunSummary = {
   packId: string;
   score: number;
@@ -55,19 +58,35 @@ export type RunSummary = {
   durationPlayedSec: number;
   seed: string;
   level: LevelConfig;
+
+  answers?: Array<{
+    lexemeId: string;
+    isCorrect: boolean;
+    attempts: number;
+    usedHint: boolean;
+    timeToAnswerMs: number;
+  }>;
+  timeBonus?: number;
+  comboMax?: number;
+};
+
+// 🔹 адаптивные метрики по паку
+export type PackAdaptive = {
+  lastSessionAccuracy: number;  // точность последней сессии
+  lastAnswersWindow: number[];  // массив 0/1 (<= windowSize)
+  windowSize: number;           // например 50
 };
 
 // Хранилище прогресса
 export type LexemeProgress = {
   mastery: number; // 0..5
-  // можем хранить последние N ошибок как счетчик/временные метки
-  recentMistakes: string[]; // ISO strings
+  recentMistakes: string[];
 };
 
 export type ProgressState = {
   // по packId → lexemeId → progress
   packs: Record<string, Record<string, LexemeProgress>>;
-  // история сессий (лёгкая сводка)
+  // история сессий
   sessions: Array<{
     id: string;          // `${packId}:${timestamp}`
     packId: string;
@@ -77,6 +96,8 @@ export type ProgressState = {
     endedAt: string;     // ISO
     errors: string[];    // lexemeIds
   }>;
+  // 🔹 новые адаптивные метрики по паку
+  adaptive?: Record<string, PackAdaptive>;
 };
 
 export type SessionOption = {
@@ -85,12 +106,12 @@ export type SessionOption = {
 };
 
 export type SessionSlot = {
-  index: number;       // 0..slots-1
-  atSec: number;       // время появления
+  index: number;
+  atSec: number;
   lexemeId: string;
-  type: QuestionType;  // MVP: 'meaning'
-  prompt: string;      // что показываем (EN слово)
-  options: SessionOption[]; // ответы (RU)
+  type: QuestionType;
+  prompt: string;
+  options: SessionOption[];
 };
 
 export type SessionPlan = {
