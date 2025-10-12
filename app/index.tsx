@@ -57,7 +57,7 @@ export default function HomeScreen() {
   return (
     <ThemedView style={{ flex: 1, padding: 16, gap: 16 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <ThemedText type="title">Словарный Раннер</ThemedText>
+        <ThemedText type="title">Word Rush</ThemedText>
         <Link href="/settings" asChild>
           <Pressable accessibilityRole="button" style={{ padding: 8 }}>
             <ThemedText>⚙️</ThemedText>

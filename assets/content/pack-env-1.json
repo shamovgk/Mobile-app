@@ -1,0 +1,33 @@
+{
+  "id": "pack-env-1",
+  "title": "Environmental Vocabulary 1",
+  "lang": "EN→RU",
+  "cefr": "A1",
+  "lexemes": [
+    {
+      "id": "lx-tree",
+      "base": "tree",
+      "translations": ["дерево"],
+      "examples": ["There is a big tree outside."],
+      "distractors": {"meaning": ["куст", "цветок", "трава"]},
+      "mastery": 0,
+      "recentMistakes": []
+    },
+    {
+      "id": "lx-river",
+      "base": "river",
+      "translations": ["река"],
+      "examples": ["The river is long."],
+      "distractors": {"meaning": ["озеро", "море", "океан"]},
+      "mastery": 0,
+      "recentMistakes": []
+    }
+  ],
+  "levelDefaults": {
+    "durationSec": 60,
+    "forkEverySec": 2.5,
+    "lanes": 2,
+    "allowedTypes": ["meaning"],
+    "lives": 3
+  }
+}

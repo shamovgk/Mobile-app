@@ -2,14 +2,14 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getPackById } from '@/lib/content';
 import { buildSessionPlan } from '@/lib/engine';
-import { mulberry32, shuffleInPlace } from '@/lib/random';
 import { applyAnswer, defaultScore } from '@/lib/scoring';
-import { sfxDispose, sfxFail, sfxInit, sfxOk } from '@/lib/sfx';
+import { sfxDispose, sfxInit } from '@/lib/sfx';
 import type { LevelConfig, RunSummary } from '@/lib/types';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, AppState, BackHandler, Modal, Pressable, Text, View } from 'react-native';
 
+// Константы
 const STUN_MS = 2000;
 const BONUS_PER_SEC = 50;
 
@@ -25,23 +25,23 @@ export default function RunScreen() {
   const router = useRouter();
   const navigation = useNavigation();
 
+  // Парсим уровень сессии
   const levelConfig: LevelConfig = useMemo(() => {
     try { return JSON.parse(decodeURIComponent(level ?? '')) as LevelConfig; }
     catch { return { durationSec: 60, forkEverySec: 2.5, lanes: 2, allowedTypes: ['meaning'], lives: 3 }; }
   }, [level]);
 
-  const pack = getPackById((packId as string) ?? 'pack-basic-1')!;
-  const sessionSeed = (seed as string) ?? `${pack.id}-seed-default`;
+  const pack = getPackById(packId!)!;
+  const sessionSeed = seed ?? `${pack.id}-seed-default`;
   const isReviewMode = mode === 'review';
 
-  // repeatSet (для «Повторить ошибки»)
+  // Для режима review используем повтор ошибок
   const repeatSet: string[] | null = useMemo(() => {
     if (!repeat) return null;
     try { return JSON.parse(decodeURIComponent(repeat)) as string[]; }
     catch { return null; }
   }, [repeat]);
 
-  // В режиме review можно сделать короткую сессию — но отдаём контроль Duration экрану Result.
   const effectiveLevel: LevelConfig = useMemo(() => {
     if (isReviewMode && repeatSet && repeatSet.length > 0) {
       const suggested = Math.min(60, Math.max(15, repeatSet.length * 5));
@@ -50,28 +50,19 @@ export default function RunScreen() {
     return levelConfig;
   }, [isReviewMode, repeatSet, levelConfig]);
 
-  // План: обычный — все слова; review — только из repeatSet
-  const plan = useMemo(
-    () => buildSessionPlan({
-      pack,
-      level: effectiveLevel,
-      seed: sessionSeed,
-      restrictLexemes: (isReviewMode && repeatSet && repeatSet.length > 0) ? repeatSet : undefined,
-      distractorMode: (distractorMode as 'easy'|'normal'|'hard') ?? 'normal', // 🔹 учитываем режим
-    }),
-    [pack, effectiveLevel, sessionSeed, isReviewMode, repeatSet, distractorMode]
-  );
+  // Создаем план сессии
+  const plan = useMemo(() => buildSessionPlan({
+    pack,
+    level: effectiveLevel,
+    seed: sessionSeed,
+    restrictLexemes: isReviewMode && repeatSet && repeatSet.length > 0 ? repeatSet : undefined,
+    distractorMode: distractorMode ?? 'normal',  // Режим дистракторов
+  }), [pack, effectiveLevel, sessionSeed, isReviewMode, repeatSet, distractorMode]);
 
-  // HUD/состояния
+  // Состояние счета
   const [scoreState, setScoreState] = useState(() => defaultScore());
   const scoreRef = useRef(scoreState);
   useEffect(() => { scoreRef.current = scoreState; }, [scoreState]);
-
-  // максимум комбо (для статистики)
-  const comboMaxRef = useRef<number>(0);
-  useEffect(() => {
-    if (scoreState.combo > comboMaxRef.current) comboMaxRef.current = scoreState.combo;
-  }, [scoreState.combo]);
 
   const [timerLeft, setTimerLeft] = useState(effectiveLevel.durationSec);
   const sessionActiveRef = useRef(true);
@@ -82,8 +73,6 @@ export default function RunScreen() {
     _setSlotIdx(prev => {
       const next = typeof v === 'function' ? (v as any)(prev) : v;
       slotIdxRef.current = next;
-      // при смене слова — сбрасываем попытки
-      attemptsForCurrentRef.current = 0;
       return next;
     });
   };
@@ -108,6 +97,12 @@ export default function RunScreen() {
   // Аудио/вибро
   useEffect(() => { sfxInit(); return () => { sfxDispose(); }; }, []);
 
+  // Автопауза
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => { if (s === 'background' || s === 'inactive') setPaused(true); });
+    return () => sub.remove();
+  }, []);
+
   // Запрет выхода
   useEffect(() => {
     const backSub = BackHandler.addEventListener('hardwareBackPress', () => { setPaused(true); return true; });
@@ -115,13 +110,7 @@ export default function RunScreen() {
     return () => { backSub.remove(); beforeRemove(); };
   }, [navigation]);
 
-  // Автопауза
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (s) => { if (s === 'background' || s === 'inactive') setPaused(true); });
-    return () => sub.remove();
-  }, []);
-
-  // Глобальный таймер: фикс. старт + учёт пауз (НЕ зависит от ответов)
+  // Таймер сессии
   const startRef = useRef<number>(Date.now());
   const pausedAccumRef = useRef<number>(0);
   const pauseStartRef = useRef<number | null>(null);
@@ -150,7 +139,6 @@ export default function RunScreen() {
       const leftSec = Math.max(0, Math.ceil((durationMs - elapsed) / 1000));
       setTimerLeft(leftSec);
 
-      // тик оглушения для UI
       const stunLeftMs = Math.max(0, stunnedUntilRef.current - now);
       setStunLeft(Math.ceil(stunLeftMs / 100) / 10);
 
@@ -165,21 +153,8 @@ export default function RunScreen() {
     return () => cancelAnimationFrame(raf);
   }, [isPaused, durationMs]);
 
-  const remainingSeconds = () => {
-    const now = Date.now();
-    const pausedNow = pausedAccumRef.current + (pauseStartRef.current ? now - pauseStartRef.current : 0);
-    const elapsed = now - startRef.current - pausedNow;
-    return Math.max(0, Math.ceil((durationMs - elapsed) / 1000));
-  };
-
-  const triggerStun = (now = Date.now()) => { stunnedUntilRef.current = now + STUN_MS; };
-
-  const resumeRun = () => setPaused(false);
-  const exitRun = () => { sessionActiveRef.current = false; router.back(); };
-
   // Учёт ответов по словам (для SRS и Result)
   const answersRef = useRef<RunSummary['answers']>([]);
-  const attemptsForCurrentRef = useRef<number>(0);
 
   const finishSession = (extraScore = 0) => {
     if (!sessionActiveRef.current) return;
@@ -197,19 +172,10 @@ export default function RunScreen() {
       level: effectiveLevel,
       answers: answersRef.current ?? [],
       timeBonus: extraScore > 0 ? extraScore : 0,
-      comboMax: comboMaxRef.current,
+      comboMax: 0,  // Возможно добавить максимальное комбо
     };
 
     router.replace({ pathname: '/result', params: { summary: encodeURIComponent(JSON.stringify(summary)) } });
-  };
-
-  // Эффекты UI
-  const blinkCard = () => {
-    cardOpacity.stopAnimation();
-    Animated.sequence([
-      Animated.timing(cardOpacity, { toValue: 0.85, duration: 120, useNativeDriver: true }),
-      Animated.timing(cardOpacity, { toValue: 1, duration: 120, useNativeDriver: true }),
-    ]).start();
   };
 
   const answerPick = async (laneIndex: 0 | 1) => {
@@ -223,65 +189,40 @@ export default function RunScreen() {
 
     const isCorrect = !!opt.isCorrect;
     setScoreState((st) => applyAnswer(st, isCorrect, slot.lexemeId));
-    blinkCard();
 
-    if (isCorrect) {
-      setHighlight({ index: laneIndex, correct: true });
-      await sfxOk(true);
-
-      // записываем итоги по слову (одна запись на слово)
-      const attempts = attemptsForCurrentRef.current + 1;
-      answersRef.current = [
-        ...(answersRef.current ?? []),
-        {
-          lexemeId: slot.lexemeId,
-          isCorrect: attempts === 1, // верно с первой попытки
-          attempts,
-          usedHint: false,
-          timeToAnswerMs: 0, // в MVP не считаем точно
-        },
-      ];
-      attemptsForCurrentRef.current = 0; // сброс для следующего слова
-
-      // Короткая задержка, чтобы игрок увидел зелёный
-      setTimeout(() => {
-        setHighlight(null);
-        const next = slotIdxRef.current + 1;
-        setSlotIdx(next);
-        if (next >= plan.slots.length) {
-          const bonus = remainingSeconds() * BONUS_PER_SEC;
-          finishSession(bonus);
-        }
-      }, 250);
-    } else {
-      setHighlight({ index: laneIndex, correct: false });
-      await sfxFail(true);
-      triggerStun(now);
-
-      // накапливаем попытки на это слово
-      attemptsForCurrentRef.current += 1;
-
-      // Перетасовка вариантов для текущего слова
-      setOptions((prev) => {
-        const copy = [...prev];
-        shuffleInPlace(copy, mulberry32(now)); // сидим текущим временем
-        return copy;
-      });
-
-      // Снятие красной подсветки чуть позже
-      setTimeout(() => setHighlight(null), 400);
-      // остаёмся на том же слове
-    }
+    // Короткая задержка для визуального эффекта
+    setTimeout(() => {
+      setHighlight(null);
+      const next = slotIdxRef.current + 1;
+      setSlotIdx(next);
+      if (next >= plan.slots.length) {
+        const bonus = remainingSeconds() * BONUS_PER_SEC;
+        finishSession(bonus);
+      }
+    }, 250);
   };
 
+  const remainingSeconds = () => {
+    const now = Date.now();
+    const pausedNow = pausedAccumRef.current + (pauseStartRef.current ? now - pauseStartRef.current : 0);
+    const elapsed = now - startRef.current - pausedNow;
+    return Math.max(0, Math.ceil((durationMs - elapsed) / 1000));
+  };
+
+  const resumeRun = () => setPaused(false);
+  const exitRun = () => { sessionActiveRef.current = false; router.back(); };
+
   const slot = plan.slots[Math.min(slotIdx, plan.slots.length - 1)];
+
+  // Оценка звезд (по точности)
+  const accuracy = scoreState.total > 0 ? (scoreState.correct / scoreState.total) : 0;
+  const stars = Math.floor(accuracy * 3);
 
   return (
     <ThemedView style={{ flex: 1, padding: 16, gap: 16 }}>
       {/* HUD */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <ThemedText>Score: {scoreState.score}</ThemedText>
-        <ThemedText>Combo: x{scoreState.comboMul.toFixed(1)}</ThemedText>
         <ThemedText>⏱ {timerLeft}s</ThemedText>
         <Pressable
           accessibilityRole="button"
@@ -292,75 +233,62 @@ export default function RunScreen() {
         </Pressable>
       </View>
 
+      {/* Прогресс бар */}
+      <View style={{ height: 10, backgroundColor: '#eee', borderRadius: 5, marginTop: 10 }}>
+        <Animated.View
+          style={{
+            height: '100%',
+            width: `${(100 - (timerLeft / effectiveLevel.durationSec) * 100)}%`,
+            backgroundColor: '#27ae60',
+            borderRadius: 5,
+          }}
+        />
+      </View>
+
+      {/* Звезды */}
+      <View style={{ flexDirection: 'row', gap: 6, marginTop: 10 }}>
+        {Array.from({ length: 3 }, (_, i) => (
+          <Text key={i} style={{ fontSize: 24, color: i < stars ? '#FFD700' : '#ccc' }}>
+            ★
+          </Text>
+        ))}
+      </View>
+
       {/* Статус */}
       <View style={{ padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#eee' }}>
         <ThemedText>Слово: {Math.min(slotIdx + 1, plan.slots.length)} / {plan.slots.length}</ThemedText>
-        {stunnedUntilRef.current > Date.now() && (
-          <ThemedText>⛔ Оглушение: ещё ~{stunLeft.toFixed(1)} c</ThemedText>
-        )}
       </View>
 
       {/* Карточка */}
-      <Animated.View
-        style={{
-          padding: 16,
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: '#ddd',
-          alignItems: 'center',
-          justifyContent: 'center',
-          opacity: cardOpacity,
-        }}
-      >
-        <ThemedText style={{ fontSize: 28, fontWeight: '700' }}>
-          {slot.prompt}
-        </ThemedText>
-        <ThemedText style={{ marginTop: 6, opacity: 0.7 }}>тапни на перевод</ThemedText>
+      <Animated.View style={{ padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#ddd', alignItems: 'center', justifyContent: 'center', opacity: cardOpacity }}>
+        <ThemedText style={{ fontSize: 28, fontWeight: '700' }}>{slot.prompt}</ThemedText>
       </Animated.View>
 
       {/* Варианты */}
       <View style={{ flex: 1, flexDirection: 'row', gap: 12, marginTop: 12 }}>
         {options.map((opt, i) => {
-          // ЯВНАЯ подсветка выбранного варианта
           let bgColor = '#FFFFFF';
           if (highlight && highlight.index === i) {
-            bgColor = highlight.correct ? '#27ae60' : '#eb5757'; // зелёный / красный
+            bgColor = highlight.correct ? '#27ae60' : '#eb5757';  // зеленый / красный
           }
 
           return (
-            <View
-              key={`${slot.index}-${i}-${opt.id}`}
-              style={{
-                flex: 1,
-                borderWidth: 1,
-                borderColor: '#ccc',
-                borderRadius: 16,
-                justifyContent: 'center',
-                alignItems: 'center',
-                backgroundColor: bgColor,
-              }}
-            >
+            <View key={`${slot.index}-${i}-${opt.id}`} style={{ flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: bgColor }}>
               <Pressable
                 accessibilityRole="button"
                 onPress={() => answerPick(i as 0 | 1)}
                 style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 8 }}
               >
-                <Text style={{ fontSize: 24, fontWeight: '700', textAlign: 'center' }}>
-                  {opt.id}
-                </Text>
+                <Text style={{ fontSize: 24, fontWeight: '700', textAlign: 'center' }}>{opt.id}</Text>
               </Pressable>
             </View>
           );
         })}
       </View>
 
-      {/* Завершить (отладка) */}
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => finishSession()}
-        style={{ padding: 16, borderRadius: 12, backgroundColor: '#27ae60', alignItems: 'center' }}
-      >
-        <ThemedText style={{ color: 'white' }}>Завершить (демо)</ThemedText>
+      {/* Завершить */}
+      <Pressable accessibilityRole="button" onPress={() => finishSession()} style={{ padding: 16, borderRadius: 12, backgroundColor: '#27ae60', alignItems: 'center' }}>
+        <ThemedText style={{ color: 'white' }}>Завершить</ThemedText>
       </Pressable>
 
       {/* Пауза */}

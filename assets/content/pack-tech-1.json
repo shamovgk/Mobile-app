@@ -1,0 +1,33 @@
+{
+  "id": "pack-tech-1",
+  "title": "Technology Vocabulary 1",
+  "lang": "EN→RU",
+  "cefr": "A1",
+  "lexemes": [
+    {
+      "id": "lx-computer",
+      "base": "computer",
+      "translations": ["компьютер"],
+      "examples": ["I work on a computer every day."],
+      "distractors": {"meaning": ["телевизор", "телефон", "стерео"]},
+      "mastery": 0,
+      "recentMistakes": []
+    },
+    {
+      "id": "lx-phone",
+      "base": "phone",
+      "translations": ["телефон"],
+      "examples": ["I am calling on my phone."],
+      "distractors": {"meaning": ["планшет", "компьютер", "ноутбук"]},
+      "mastery": 0,
+      "recentMistakes": []
+    }
+  ],
+  "levelDefaults": {
+    "durationSec": 60,
+    "forkEverySec": 2.5,
+    "lanes": 2,
+    "allowedTypes": ["meaning"],
+    "lives": 3
+  }
+}

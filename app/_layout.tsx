@@ -11,7 +11,7 @@ export default function RootLayout() {
           gestureEnabled: true,
         }}
       >
-        <Stack.Screen name="index" options={{ title: 'Словарный Раннер' }} />
+        <Stack.Screen name="index" options={{ title: 'Word Rush' }} />
         <Stack.Screen name="pack/[packId]" options={{ title: 'Пак слов' }} />
         <Stack.Screen
           name="run"

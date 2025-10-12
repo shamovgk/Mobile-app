@@ -1,0 +1,33 @@
+{
+  "id": "pack-food-1",
+  "title": "Food Vocabulary 1",
+  "lang": "EN→RU",
+  "cefr": "A1",
+  "lexemes": [
+    {
+      "id": "lx-apple",
+      "base": "apple",
+      "translations": ["яблоко"],
+      "examples": ["An apple a day keeps the doctor away."],
+      "distractors": {"meaning": ["банан", "груша", "апельсин"]},
+      "mastery": 0,
+      "recentMistakes": []
+    },
+    {
+      "id": "lx-bread",
+      "base": "bread",
+      "translations": ["хлеб"],
+      "examples": ["I like to eat bread with butter."],
+      "distractors": {"meaning": ["масло", "сыр", "вода"]},
+      "mastery": 0,
+      "recentMistakes": []
+    }
+  ],
+  "levelDefaults": {
+    "durationSec": 60,
+    "forkEverySec": 2.5,
+    "lanes": 2,
+    "allowedTypes": ["meaning"],
+    "lives": 3
+  }
+}

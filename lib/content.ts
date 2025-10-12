@@ -1,10 +1,12 @@
-import packBasic1 from '@/assets/content/pack-basic-1.json';
-import packCore50 from '@/assets/content/pack-core-50.json';
+import packEnv1 from '@/assets/content/pack-env-1.json';
+import packFood1 from '@/assets/content/pack-food-1.json';
+import packTech1 from '@/assets/content/pack-tech-1.json';
 import type { Pack, PackMeta } from './types';
 
 const packs: Pack[] = [
-  packBasic1 as unknown as Pack,
-  packCore50 as unknown as Pack,
+  packFood1 as unknown as Pack,
+  packTech1 as unknown as Pack,
+  packEnv1 as unknown as Pack,
 ];
 
 export function getPacks(): Pack[] {
@@ -22,5 +24,11 @@ export function getPacksMeta(): PackMeta[] {
     lang: p.lang,
     cefr: p.cefr,
     lexemeCount: p.lexemes.length,
+    category: p.category,  // Включаем категорию
   }));
+}
+
+// Фильтрация по категории
+export function getPacksByCategory(category: string): Pack[] {
+  return packs.filter(pack => pack.category === category);
 }

@@ -8,12 +8,11 @@ export type LevelConfig = {
   lives: number;
 };
 
-// 🔹 режим похожести дистракторов
 export type DistractorMode = 'easy' | 'normal' | 'hard';
 
 export type Distractors = {
   meaning?: string[];
-  image?: string[];        // имена ассетов или id
+  image?: string[];
   form?: string[];
   collocation?: string[];
   phrasal?: string[];
@@ -39,6 +38,7 @@ export type Pack = {
   cefr: 'A0'|'A1'|'A2'|'B1'|'B2';
   lexemes: Lexeme[];
   levelDefaults: LevelConfig;
+  category: string;   // Добавлена категория для каждого пака
 };
 
 export type PackMeta = {
@@ -47,9 +47,9 @@ export type PackMeta = {
   lang: string;
   cefr: Pack['cefr'];
   lexemeCount: number;
+  category: string; // Добавлена категория для паков
 };
 
-/** Итог сессии (Этап 5) */
 export type RunSummary = {
   packId: string;
   score: number;
@@ -70,39 +70,29 @@ export type RunSummary = {
   comboMax?: number;
 };
 
-// 🔹 адаптивные метрики по паку
 export type PackAdaptive = {
-  lastSessionAccuracy: number;  // точность последней сессии
-  lastAnswersWindow: number[];  // массив 0/1 (<= windowSize)
-  windowSize: number;           // например 50
-};
-
-// Хранилище прогресса
-export type LexemeProgress = {
-  mastery: number; // 0..5
-  recentMistakes: string[];
+  lastSessionAccuracy: number;
+  lastAnswersWindow: number[];
+  windowSize: number;
 };
 
 export type ProgressState = {
-  // по packId → lexemeId → progress
   packs: Record<string, Record<string, LexemeProgress>>;
-  // история сессий
   sessions: Array<{
-    id: string;          // `${packId}:${timestamp}`
+    id: string;
     packId: string;
     score: number;
     accuracy: number;
     durationSec: number;
-    endedAt: string;     // ISO
-    errors: string[];    // lexemeIds
+    endedAt: string;
+    errors: string[];
   }>;
-  // 🔹 новые адаптивные метрики по паку
   adaptive?: Record<string, PackAdaptive>;
 };
 
-export type SessionOption = {
-  id: string;      // строка-значение ответа
-  isCorrect: boolean;
+export type LexemeProgress = {
+  mastery: number; // 0..5
+  recentMistakes: string[];
 };
 
 export type SessionSlot = {
@@ -124,4 +114,9 @@ export type SessionPlan = {
     durationSec: number;
     packId: string;
   };
+};
+
+export type SessionOption = {
+  id: string;      // строка-значение ответа
+  isCorrect: boolean;
 };
