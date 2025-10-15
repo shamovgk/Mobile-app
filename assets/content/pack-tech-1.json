@@ -1,33 +1,322 @@
 {
   "id": "pack-tech-1",
-  "title": "Technology Vocabulary 1",
+  "title": "Технологии - базовый уровень",
   "lang": "EN→RU",
-  "cefr": "A1",
+  "cefr": "A2",
+  "category": "tech",
+  "levels": [
+    {
+      "id": "level-1",
+      "title": "Введение в Tech",
+      "description": "Основные устройства и термины",
+      "order": 1,
+      "config": {
+        "durationSec": 75,
+        "forkEverySec": 3.5,
+        "lanes": 2,
+        "allowedTypes": ["meaning"],
+        "lives": 5
+      },
+      "distractorMode": "easy",
+      "unlockRequirement": {
+        "minStars": 1
+      }
+    },
+    {
+      "id": "level-2",
+      "title": "Интернет и связь",
+      "description": "Сетевые термины",
+      "order": 2,
+      "config": {
+        "durationSec": 60,
+        "forkEverySec": 3,
+        "lanes": 2,
+        "allowedTypes": ["meaning"],
+        "lives": 4
+      },
+      "distractorMode": "normal",
+      "unlockRequirement": {
+        "previousLevel": "level-1",
+        "minStars": 1
+      }
+    },
+    {
+      "id": "level-3",
+      "title": "Продвинутый уровень",
+      "description": "Все термины в быстром темпе",
+      "order": 3,
+      "config": {
+        "durationSec": 60,
+        "forkEverySec": 2.5,
+        "lanes": 3,
+        "allowedTypes": ["meaning"],
+        "lives": 3
+      },
+      "distractorMode": "hard",
+      "unlockRequirement": {
+        "previousLevel": "level-2",
+        "minStars": 1
+      }
+    },
+    {
+      "id": "level-4",
+      "title": "Tech Sprint",
+      "description": "Максимальная концентрация",
+      "order": 4,
+      "config": {
+        "durationSec": 45,
+        "forkEverySec": 2,
+        "lanes": 3,
+        "allowedTypes": ["meaning"],
+        "lives": 3
+      },
+      "distractorMode": "hard",
+      "unlockRequirement": {
+        "previousLevel": "level-3",
+        "minStars": 1
+      }
+    }
+  ],
   "lexemes": [
     {
-      "id": "lx-computer",
+      "id": "computer",
       "base": "computer",
+      "forms": {},
       "translations": ["компьютер"],
-      "examples": ["I work on a computer every day."],
-      "distractors": {"meaning": ["телевизор", "телефон", "стерео"]},
+      "examples": ["I work on my computer all day"],
+      "distractors": {
+        "meaning": ["ноутбук", "планшет", "телефон", "монитор"]
+      },
       "mastery": 0,
       "recentMistakes": []
     },
     {
-      "id": "lx-phone",
+      "id": "phone",
       "base": "phone",
+      "forms": {},
       "translations": ["телефон"],
-      "examples": ["I am calling on my phone."],
-      "distractors": {"meaning": ["планшет", "компьютер", "ноутбук"]},
+      "examples": ["My phone battery is low"],
+      "distractors": {
+        "meaning": ["планшет", "компьютер", "часы", "наушники"]
+      },
+      "mastery": 0,
+      "recentMistakes": []
+    },
+    {
+      "id": "laptop",
+      "base": "laptop",
+      "forms": {},
+      "translations": ["ноутбук"],
+      "examples": ["She carries her laptop everywhere"],
+      "distractors": {
+        "meaning": ["компьютер", "планшет", "телефон", "монитор"]
+      },
+      "mastery": 0,
+      "recentMistakes": []
+    },
+    {
+      "id": "tablet",
+      "base": "tablet",
+      "forms": {},
+      "translations": ["планшет"],
+      "examples": ["Kids use tablets for learning"],
+      "distractors": {
+        "meaning": ["телефон", "ноутбук", "книга", "экран"]
+      },
+      "mastery": 0,
+      "recentMistakes": []
+    },
+    {
+      "id": "keyboard",
+      "base": "keyboard",
+      "forms": {},
+      "translations": ["клавиатура"],
+      "examples": ["This keyboard is comfortable"],
+      "distractors": {
+        "meaning": ["мышь", "монитор", "принтер", "сканер"]
+      },
+      "mastery": 0,
+      "recentMistakes": []
+    },
+    {
+      "id": "mouse",
+      "base": "mouse",
+      "forms": {},
+      "translations": ["мышь"],
+      "examples": ["Wireless mouse is convenient"],
+      "distractors": {
+        "meaning": ["клавиатура", "джойстик", "тачпад", "перо"]
+      },
+      "mastery": 0,
+      "recentMistakes": []
+    },
+    {
+      "id": "screen",
+      "base": "screen",
+      "forms": {},
+      "translations": ["экран"],
+      "examples": ["The screen is too bright"],
+      "distractors": {
+        "meaning": ["монитор", "дисплей", "телевизор", "проектор"]
+      },
+      "mastery": 0,
+      "recentMistakes": []
+    },
+    {
+      "id": "internet",
+      "base": "internet",
+      "forms": {},
+      "translations": ["интернет"],
+      "examples": ["Fast internet is important"],
+      "distractors": {
+        "meaning": ["сеть", "вайфай", "связь", "данные"]
+      },
+      "mastery": 0,
+      "recentMistakes": []
+    },
+    {
+      "id": "website",
+      "base": "website",
+      "forms": {},
+      "translations": ["веб-сайт"],
+      "examples": ["Visit our website for details"],
+      "distractors": {
+        "meaning": ["страница", "портал", "блог", "форум"]
+      },
+      "mastery": 0,
+      "recentMistakes": []
+    },
+    {
+      "id": "email",
+      "base": "email",
+      "forms": {},
+      "translations": ["электронная почта"],
+      "examples": ["Send me an email later"],
+      "distractors": {
+        "meaning": ["письмо", "сообщение", "почта", "чат"]
+      },
+      "mastery": 0,
+      "recentMistakes": []
+    },
+    {
+      "id": "password",
+      "base": "password",
+      "forms": {},
+      "translations": ["пароль"],
+      "examples": ["Create a strong password"],
+      "distractors": {
+        "meaning": ["код", "ключ", "пин", "логин"]
+      },
+      "mastery": 0,
+      "recentMistakes": []
+    },
+    {
+      "id": "software",
+      "base": "software",
+      "forms": {},
+      "translations": ["программное обеспечение"],
+      "examples": ["Update your software regularly"],
+      "distractors": {
+        "meaning": ["программа", "приложение", "система", "драйвер"]
+      },
+      "mastery": 0,
+      "recentMistakes": []
+    },
+    {
+      "id": "app",
+      "base": "app",
+      "forms": {},
+      "translations": ["приложение"],
+      "examples": ["Download the app from store"],
+      "distractors": {
+        "meaning": ["программа", "игра", "сервис", "утилита"]
+      },
+      "mastery": 0,
+      "recentMistakes": []
+    },
+    {
+      "id": "download",
+      "base": "download",
+      "forms": {},
+      "translations": ["скачать"],
+      "examples": ["Download the file now"],
+      "distractors": {
+        "meaning": ["загрузить", "установить", "сохранить", "открыть"]
+      },
+      "mastery": 0,
+      "recentMistakes": []
+    },
+    {
+      "id": "upload",
+      "base": "upload",
+      "forms": {},
+      "translations": ["загрузить"],
+      "examples": ["Upload your photo here"],
+      "distractors": {
+        "meaning": ["скачать", "отправить", "сохранить", "опубликовать"]
+      },
+      "mastery": 0,
+      "recentMistakes": []
+    },
+    {
+      "id": "file",
+      "base": "file",
+      "forms": {},
+      "translations": ["файл"],
+      "examples": ["Delete this file"],
+      "distractors": {
+        "meaning": ["папка", "документ", "архив", "данные"]
+      },
+      "mastery": 0,
+      "recentMistakes": []
+    },
+    {
+      "id": "folder",
+      "base": "folder",
+      "forms": {},
+      "translations": ["папка"],
+      "examples": ["Create a new folder"],
+      "distractors": {
+        "meaning": ["файл", "директория", "архив", "диск"]
+      },
+      "mastery": 0,
+      "recentMistakes": []
+    },
+    {
+      "id": "battery",
+      "base": "battery",
+      "forms": {},
+      "translations": ["батарея"],
+      "examples": ["The battery is dead"],
+      "distractors": {
+        "meaning": ["зарядка", "аккумулятор", "питание", "энергия"]
+      },
+      "mastery": 0,
+      "recentMistakes": []
+    },
+    {
+      "id": "charger",
+      "base": "charger",
+      "forms": {},
+      "translations": ["зарядное устройство"],
+      "examples": ["Where is my phone charger?"],
+      "distractors": {
+        "meaning": ["батарея", "кабель", "провод", "адаптер"]
+      },
+      "mastery": 0,
+      "recentMistakes": []
+    },
+    {
+      "id": "wifi",
+      "base": "wifi",
+      "forms": {},
+      "translations": ["вайфай"],
+      "examples": ["Connect to wifi network"],
+      "distractors": {
+        "meaning": ["интернет", "сеть", "блютуз", "модем"]
+      },
       "mastery": 0,
       "recentMistakes": []
     }
-  ],
-  "levelDefaults": {
-    "durationSec": 60,
-    "forkEverySec": 2.5,
-    "lanes": 2,
-    "allowedTypes": ["meaning"],
-    "lives": 3
-  }
+  ]
 }

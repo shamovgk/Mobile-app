@@ -1,5 +1,12 @@
+/**
+ * Определения типов для всего приложения с системой уровней
+ */
+
 export type QuestionType = 'meaning' | 'image' | 'form' | 'collocation' | 'phrasal' | 'article' | 'preposition';
 
+/**
+ * Конфигурация уровня сложности
+ */
 export type LevelConfig = {
   durationSec: number;
   forkEverySec: number;
@@ -27,18 +34,38 @@ export type Lexeme = {
   translations: string[];
   examples: string[];
   distractors: Distractors;
-  mastery: number;            // 0..5
-  recentMistakes: string[];   // ISO timestamps
+  mastery: number;
+  recentMistakes: string[];
 };
 
+/**
+ * Уровень внутри пака
+ */
+export type PackLevel = {
+  id: string;
+  title: string;
+  description: string;
+  order: number;
+  config: LevelConfig;
+  restrictLexemes?: string[];
+  distractorMode: DistractorMode;
+  unlockRequirement: {
+    previousLevel?: string;
+    minStars: 1 | 2 | 3;
+  };
+};
+
+/**
+ * Словарный пак с уровнями
+ */
 export type Pack = {
   id: string;
   title: string;
-  lang: string;     // 'EN→RU'
-  cefr: 'A0'|'A1'|'A2'|'B1'|'B2';
+  lang: string;
+  cefr: 'A0' | 'A1' | 'A2' | 'B1' | 'B2';
   lexemes: Lexeme[];
-  levelDefaults: LevelConfig;
-  category: string;   // Добавлена категория для каждого пака
+  levels: PackLevel[];
+  category: string;
 };
 
 export type PackMeta = {
@@ -47,18 +74,32 @@ export type PackMeta = {
   lang: string;
   cefr: Pack['cefr'];
   lexemeCount: number;
-  category: string; // Добавлена категория для паков
+  category: string;
+  levelsCount: number;
+};
+
+/**
+ * Прогресс по уровню
+ */
+export type LevelProgress = {
+  levelId: string;
+  stars: 0 | 1 | 2 | 3;
+  bestScore: number;
+  bestAccuracy: number;
+  completed: boolean;
+  attempts: number;
+  lastPlayedAt?: string;
 };
 
 export type RunSummary = {
   packId: string;
+  levelId: string;
   score: number;
-  accuracy: number; // 0..1
+  accuracy: number;
   errors: Array<{ lexemeId: string; sample?: string }>;
   durationPlayedSec: number;
   seed: string;
   level: LevelConfig;
-
   answers?: Array<{
     lexemeId: string;
     isCorrect: boolean;
@@ -81,6 +122,7 @@ export type ProgressState = {
   sessions: Array<{
     id: string;
     packId: string;
+    levelId: string;
     score: number;
     accuracy: number;
     durationSec: number;
@@ -88,11 +130,17 @@ export type ProgressState = {
     errors: string[];
   }>;
   adaptive?: Record<string, PackAdaptive>;
+  levelProgress?: Record<string, Record<string, LevelProgress>>;
 };
 
 export type LexemeProgress = {
-  mastery: number; // 0..5
+  mastery: number;
   recentMistakes: string[];
+};
+
+export type SessionOption = {
+  id: string;
+  isCorrect: boolean;
 };
 
 export type SessionSlot = {
@@ -114,9 +162,4 @@ export type SessionPlan = {
     durationSec: number;
     packId: string;
   };
-};
-
-export type SessionOption = {
-  id: string;      // строка-значение ответа
-  isCorrect: boolean;
 };
