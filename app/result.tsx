@@ -1,24 +1,36 @@
 /**
- * Экран результатов с улучшенным UI для ошибок
+ * Экран результатов с полным сбросом стека навигации
  */
 
 import { Confetti } from '@/components/confetti';
-import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getPackById } from '@/lib/content';
 import { applySessionSummary, getLevelProgress } from '@/lib/storage';
 import type { RunSummary } from '@/lib/types';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { CommonActions } from '@react-navigation/native';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { BackHandler, Pressable, ScrollView, Text, View } from 'react-native';
 
 export default function ResultScreen() {
   const { summary } = useLocalSearchParams<{ summary?: string }>();
   const router = useRouter();
+  const navigation = useNavigation();
 
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
+
+  /**
+   * Блокировка аппаратной кнопки "Назад"
+   */
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      return true;
+    });
+
+    return () => backHandler.remove();
+  }, []);
 
   let data: RunSummary | null = null;
   try {
@@ -38,9 +50,7 @@ export default function ResultScreen() {
       : null;
 
   const levelStr = data ? encodeURIComponent(JSON.stringify(data.level)) : undefined;
-
   const [nextLevelUnlocked, setNextLevelUnlocked] = useState(false);
-
   const accuracyPct = Math.round((data?.accuracy ?? 0) * 100);
 
   const getStars = (accuracy: number): number => {
@@ -114,13 +124,46 @@ export default function ResultScreen() {
   const repeatSet = errorItems.map((i) => i.lexemeId);
   const repeatParam = repeatSet.length > 0 ? encodeURIComponent(JSON.stringify(repeatSet)) : undefined;
 
+  /**
+   * КЛЮЧЕВАЯ ФУНКЦИЯ: Сброс стека навигации до пака
+   * Удаляет все экраны игры и результатов, оставляя только: index → pack
+   */
+  const resetToPack = () => {
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 1, // Будет 2 экрана в стеке
+        routes: [
+          { name: 'index' }, // Главная
+          { 
+            name: 'pack/[packId]', 
+            params: { packId } 
+          }, // Пак
+        ],
+      })
+    );
+  };
+
+  /**
+   * Переход к игре через пак (очищаем стек)
+   */
+  const navigateToGame = (gameParams: any) => {
+    // Сначала сбрасываем стек до пака
+    resetToPack();
+    
+    // Потом открываем игру
+    setTimeout(() => {
+      router.push({
+        pathname: '/run',
+        params: gameParams,
+      });
+    }, 100);
+  };
+
   return (
     <ThemedView style={{ flex: 1 }}>
       {showConfetti && <Confetti count={60} duration={3000} />}
 
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
-        <ThemedText type="title">Результаты</ThemedText>
-
+      <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 8, gap: 16 }}>
         {/* Информация об уровне */}
         {currentLevel && (
           <View
@@ -138,7 +181,7 @@ export default function ResultScreen() {
           </View>
         )}
 
-        {/* Статистика сессии */}
+        {/* Статистика */}
         <View
           style={{
             padding: 16,
@@ -172,7 +215,7 @@ export default function ResultScreen() {
           )}
         </View>
 
-        {/* Звёзды за результат */}
+        {/* Звёзды */}
         <View
           style={{
             padding: 20,
@@ -245,7 +288,7 @@ export default function ResultScreen() {
           )}
         </View>
 
-        {/* Список ошибок - УЛУЧШЕННЫЙ */}
+        {/* Ошибки */}
         <View style={{ gap: 8 }}>
           <Text style={{ fontSize: 18, fontWeight: '600', color: '#000' }}>
             Ошибки {errorItems.length > 0 && `(${errorItems.length})`}
@@ -281,15 +324,12 @@ export default function ResultScreen() {
                     gap: 8,
                   }}
                 >
-                  {/* Слово */}
                   <Text style={{ fontSize: 20, fontWeight: '700', color: '#000' }}>
                     {String(item.base)}
                   </Text>
 
-                  {/* Перевод */}
                   <Text style={{ fontSize: 16, color: '#000' }}>{item.translation}</Text>
 
-                  {/* Пример */}
                   {!!item.example && (
                     <View
                       style={{
@@ -306,7 +346,6 @@ export default function ResultScreen() {
                     </View>
                   )}
 
-                  {/* Попытки */}
                   {item.attempts > 1 && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                       <Text style={{ fontSize: 12, color: '#f44336', fontWeight: '600' }}>
@@ -322,21 +361,19 @@ export default function ResultScreen() {
 
         {/* Кнопки действий */}
         <View style={{ gap: 10, marginTop: 8 }}>
+          {/* Следующий уровень */}
           {nextLevel && stars >= 1 && nextLevelUnlocked && (
             <Pressable
               accessibilityRole="button"
               onPress={() => {
                 const nextLevelStr = encodeURIComponent(JSON.stringify(nextLevel.config));
-                router.push({
-                  pathname: '/run',
-                  params: {
-                    packId,
-                    levelId: nextLevel.id,
-                    level: nextLevelStr,
-                    seed: `${packId}-${nextLevel.id}-${Date.now()}`,
-                    mode: 'normal',
-                    distractorMode: nextLevel.distractorMode,
-                  },
+                navigateToGame({
+                  packId,
+                  levelId: nextLevel.id,
+                  level: nextLevelStr,
+                  seed: `${packId}-${nextLevel.id}-${Date.now()}`,
+                  mode: 'normal',
+                  distractorMode: nextLevel.distractorMode,
                 });
               }}
               style={{
@@ -354,21 +391,19 @@ export default function ResultScreen() {
             </Pressable>
           )}
 
+          {/* Повторить ошибки */}
           {repeatSet.length > 0 && currentLevel && (
             <Pressable
               accessibilityRole="button"
               onPress={() => {
-                router.push({
-                  pathname: '/run',
-                  params: {
-                    packId,
-                    levelId,
-                    level: levelStr!,
-                    seed: `${packId}-${levelId}-review-${Date.now()}`,
-                    mode: 'review',
-                    repeat: repeatParam!,
-                    distractorMode: currentLevel.distractorMode,
-                  },
+                navigateToGame({
+                  packId,
+                  levelId,
+                  level: levelStr!,
+                  seed: `${packId}-${levelId}-review-${Date.now()}`,
+                  mode: 'review',
+                  repeat: repeatParam!,
+                  distractorMode: currentLevel.distractorMode,
                 });
               }}
               style={{ padding: 16, borderRadius: 12, backgroundColor: '#ff9800', alignItems: 'center' }}
@@ -379,20 +414,18 @@ export default function ResultScreen() {
             </Pressable>
           )}
 
+          {/* Повторить уровень */}
           {currentLevel && (
             <Pressable
               accessibilityRole="button"
               onPress={() => {
-                router.push({
-                  pathname: '/run',
-                  params: {
-                    packId,
-                    levelId,
-                    level: levelStr!,
-                    seed: `${packId}-${levelId}-retry-${Date.now()}`,
-                    mode: 'normal',
-                    distractorMode: currentLevel.distractorMode,
-                  },
+                navigateToGame({
+                  packId,
+                  levelId,
+                  level: levelStr!,
+                  seed: `${packId}-${levelId}-retry-${Date.now()}`,
+                  mode: 'normal',
+                  distractorMode: currentLevel.distractorMode,
                 });
               }}
               style={{ padding: 16, borderRadius: 12, backgroundColor: '#2196f3', alignItems: 'center' }}
@@ -401,9 +434,10 @@ export default function ResultScreen() {
             </Pressable>
           )}
 
+          {/* Назад к уровням - ИСПОЛЬЗУЕМ resetToPack */}
           <Pressable
             accessibilityRole="button"
-            onPress={() => router.push({ pathname: '/pack/[packId]', params: { packId } })}
+            onPress={resetToPack}
             style={{
               padding: 16,
               borderRadius: 12,

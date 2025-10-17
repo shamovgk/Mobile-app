@@ -1,87 +1,82 @@
 /**
- * Определения типов для всего приложения с системой уровней
+ * Типы данных приложения
  */
 
-export type QuestionType = 'meaning' | 'image' | 'form' | 'collocation' | 'phrasal' | 'article' | 'preposition';
-
-/**
- * Конфигурация уровня сложности
- */
-export type LevelConfig = {
-  durationSec: number;
-  forkEverySec: number;
-  lanes: 2 | 3;
-  allowedTypes: QuestionType[];
-  lives: number;
-};
-
-export type DistractorMode = 'easy' | 'normal' | 'hard';
-
-export type Distractors = {
-  meaning?: string[];
-  image?: string[];
-  form?: string[];
-  collocation?: string[];
-  phrasal?: string[];
-  article?: string[];
-  preposition?: string[];
-};
-
-export type Lexeme = {
+export interface Pack {
   id: string;
-  base: string;
-  forms: Record<string, string>;
-  translations: string[];
-  examples: string[];
-  distractors: Distractors;
-  mastery: number;
-  recentMistakes: string[];
-};
+  title: string;
+  lang: string;
+  cefr: string;
+  category: string;
+  levels: PackLevel[];
+  lexemes: Lexeme[];
+}
 
-/**
- * Уровень внутри пака
- */
-export type PackLevel = {
+export interface PackLevel {
   id: string;
   title: string;
   description: string;
   order: number;
   config: LevelConfig;
-  restrictLexemes?: string[];
-  distractorMode: DistractorMode;
+  distractorMode: 'easy' | 'normal' | 'hard';
   unlockRequirement: {
     previousLevel?: string;
-    minStars: 1 | 2 | 3;
+    minStars: number;
   };
-};
+}
 
-/**
- * Словарный пак с уровнями
- */
-export type Pack = {
+export interface Lexeme {
   id: string;
-  title: string;
-  lang: string;
-  cefr: 'A0' | 'A1' | 'A2' | 'B1' | 'B2';
-  lexemes: Lexeme[];
-  levels: PackLevel[];
-  category: string;
-};
+  base: string;
+  forms: Record<string, string>;
+  translations: string[];
+  examples: string[];
+  examplesPlural?: string[];
+  distractors: {
+    meaning?: string[];
+    form?: string[];
+  };
+  mastery: number;
+  recentMistakes: string[];
+}
 
-export type PackMeta = {
+export interface LevelConfig {
+  durationSec: number;
+  forkEverySec: number;
+  lanes: 2 | 3;
+  allowedTypes: ('meaning' | 'form' | 'anagram' | 'context')[];
+  lives: number;
+}
+
+export interface SessionSlot {
+  index: number;
+  atSec: number;
+  lexemeId: string;
+  type: 'meaning' | 'form' | 'anagram' | 'context';
+  prompt: string;
+  options: SessionOption[];
+  letters?: string[];
+  words?: string[];
+  correctAnswer?: string;
+  context?: string;
+}
+
+export interface SessionOption {
   id: string;
-  title: string;
-  lang: string;
-  cefr: Pack['cefr'];
-  lexemeCount: number;
-  category: string;
-  levelsCount: number;
-};
+  isCorrect: boolean;
+}
 
-/**
- * Прогресс по уровню
- */
-export type LevelProgress = {
+export interface SessionPlan {
+  seed: string;
+  slots: SessionSlot[];
+}
+
+export interface LexemeProgress {
+  mastery: number;
+  recentMistakes: string[];
+}
+
+export interface LevelProgress {
   levelId: string;
   stars: 0 | 1 | 2 | 3;
   bestScore: number;
@@ -89,77 +84,58 @@ export type LevelProgress = {
   completed: boolean;
   attempts: number;
   lastPlayedAt?: string;
-};
+}
 
-export type RunSummary = {
+export interface ProgressState {
+  packs: Record<string, Record<string, LexemeProgress>>;
+  levelProgress?: Record<string, Record<string, LevelProgress>>;
+  sessions?: RunSummary[];
+  adaptive?: Record<string, PackAdaptive>;
+}
+
+export interface PackAdaptive {
+  weakLexemes: string[];
+  lastReviewedAt?: string;
+}
+
+export interface Answer {
+  lexemeId: string;
+  isCorrect: boolean;
+  attempts: number;
+  usedHint: boolean;
+  timeToAnswerMs: number;
+}
+
+export interface RunSummary {
   packId: string;
   levelId: string;
   score: number;
   accuracy: number;
-  errors: Array<{ lexemeId: string; sample?: string }>;
+  errors: { lexemeId: string }[];
   durationPlayedSec: number;
   seed: string;
   level: LevelConfig;
-  answers?: Array<{
-    lexemeId: string;
-    isCorrect: boolean;
-    attempts: number;
-    usedHint: boolean;
-    timeToAnswerMs: number;
-  }>;
-  timeBonus?: number;
-  comboMax?: number;
-};
+  answers: Answer[];
+  timeBonus: number;
+  comboMax: number;
+  distractorMode?: 'easy' | 'normal' | 'hard';
+}
 
-export type PackAdaptive = {
-  lastSessionAccuracy: number;
-  lastAnswersWindow: number[];
-  windowSize: number;
-};
-
-export type ProgressState = {
-  packs: Record<string, Record<string, LexemeProgress>>;
-  sessions: Array<{
-    id: string;
-    packId: string;
-    levelId: string;
-    score: number;
-    accuracy: number;
-    durationSec: number;
-    endedAt: string;
-    errors: string[];
-  }>;
-  adaptive?: Record<string, PackAdaptive>;
-  levelProgress?: Record<string, Record<string, LevelProgress>>;
-};
-
-export type LexemeProgress = {
-  mastery: number;
-  recentMistakes: string[];
-};
-
-export type SessionOption = {
+export interface PackMeta {
   id: string;
-  isCorrect: boolean;
-};
+  title: string;
+  lang: string;
+  cefr: string;
+  lexemeCount: number;
+  category: string;
+  levelsCount: number;
+}
 
-export type SessionSlot = {
-  index: number;
-  atSec: number;
-  lexemeId: string;
-  type: QuestionType;
-  prompt: string;
-  options: SessionOption[];
-};
-
-export type SessionPlan = {
-  seed: string;
-  slots: SessionSlot[];
-  summary: {
-    totalSlots: number;
-    lanes: 2 | 3;
-    forkEverySec: number;
-    durationSec: number;
-    packId: string;
-  };
-};
+export interface ScoreState {
+  score: number;
+  combo: number;
+  comboMax: number;
+  correct: number;
+  total: number;
+  errors: string[];
+}

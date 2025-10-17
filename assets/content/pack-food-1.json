@@ -1,21 +1,21 @@
 {
   "id": "pack-food-1",
   "title": "Еда - базовый уровень",
-  "lang": "EN→RU",
+  "lang": "en",
   "cefr": "A1",
   "category": "food",
   "levels": [
     {
       "id": "level-1",
-      "title": "Разминка",
-      "description": "Простые слова, много времени",
+      "title": "Введение",
+      "description": "Базовые слова: значения",
       "order": 1,
       "config": {
-        "durationSec": 90,
-        "forkEverySec": 4,
+        "durationSec": 60,
+        "forkEverySec": 3,
         "lanes": 2,
         "allowedTypes": ["meaning"],
-        "lives": 5
+        "lives": 3
       },
       "distractorMode": "easy",
       "unlockRequirement": {
@@ -24,15 +24,15 @@
     },
     {
       "id": "level-2",
-      "title": "Ускорение",
-      "description": "Быстрее темп, меньше времени",
+      "title": "Закрепление",
+      "description": "Увеличенная скорость",
       "order": 2,
       "config": {
         "durationSec": 60,
-        "forkEverySec": 3,
+        "forkEverySec": 2.5,
         "lanes": 2,
         "allowedTypes": ["meaning"],
-        "lives": 4
+        "lives": 3
       },
       "distractorMode": "normal",
       "unlockRequirement": {
@@ -42,17 +42,17 @@
     },
     {
       "id": "level-3",
-      "title": "Испытание",
-      "description": "Сложные дистракторы, 3 варианта",
+      "title": "Формы слов",
+      "description": "Множественное число и формы",
       "order": 3,
       "config": {
         "durationSec": 60,
         "forkEverySec": 2.5,
-        "lanes": 3,
-        "allowedTypes": ["meaning"],
+        "lanes": 2,
+        "allowedTypes": ["form"],
         "lives": 3
       },
-      "distractorMode": "hard",
+      "distractorMode": "normal",
       "unlockRequirement": {
         "previousLevel": "level-2",
         "minStars": 1
@@ -60,17 +60,17 @@
     },
     {
       "id": "level-4",
-      "title": "Мастер",
-      "description": "Максимальная скорость",
+      "title": "Смешанный режим",
+      "description": "Значения и формы вместе",
       "order": 4,
       "config": {
-        "durationSec": 45,
-        "forkEverySec": 2,
+        "durationSec": 90,
+        "forkEverySec": 2.5,
         "lanes": 3,
-        "allowedTypes": ["meaning"],
-        "lives": 3
+        "allowedTypes": ["meaning", "form"],
+        "lives": 5
       },
-      "distractorMode": "hard",
+      "distractorMode": "normal",
       "unlockRequirement": {
         "previousLevel": "level-3",
         "minStars": 1
@@ -78,263 +78,343 @@
     },
     {
       "id": "level-5",
-      "title": "Финальный босс",
-      "description": "Выживание: 2 жизни, высокая скорость",
+      "title": "Мастер",
+      "description": "Максимальная скорость и сложность",
       "order": 5,
       "config": {
-        "durationSec": 60,
-        "forkEverySec": 1.8,
+        "durationSec": 90,
+        "forkEverySec": 2,
         "lanes": 3,
-        "allowedTypes": ["meaning"],
-        "lives": 2
+        "allowedTypes": ["meaning", "form"],
+        "lives": 3
       },
       "distractorMode": "hard",
       "unlockRequirement": {
         "previousLevel": "level-4",
+        "minStars": 2
+      }
+    },
+    {
+      "id": "level-anagram-1",
+      "title": "Правописание",
+      "description": "Собирайте слова из букв",
+      "order": 6,
+      "config": {
+        "durationSec": 60,
+        "forkEverySec": 3,
+        "lanes": 3,
+        "allowedTypes": ["anagram"],
+        "lives": 3
+      },
+      "distractorMode": "normal",
+      "unlockRequirement": {
+        "previousLevel": "level-5",
         "minStars": 1
+      }
+    },
+    {
+      "id": "level-context-1",
+      "title": "Контекст",
+      "description": "Используйте слова в предложениях",
+      "order": 7,
+      "config": {
+        "durationSec": 90,
+        "forkEverySec": 4,
+        "lanes": 3,
+        "allowedTypes": ["context"],
+        "lives": 5
+      },
+      "distractorMode": "normal",
+      "unlockRequirement": {
+        "previousLevel": "level-anagram-1",
+        "minStars": 1
+      }
+    },
+    {
+      "id": "level-ultimate-1",
+      "title": "Финальный тест",
+      "description": "Все типы вопросов на максимальной скорости",
+      "order": 8,
+      "config": {
+        "durationSec": 120,
+        "forkEverySec": 2,
+        "lanes": 3,
+        "allowedTypes": ["meaning", "form", "anagram", "context"],
+        "lives": 5
+      },
+      "distractorMode": "hard",
+      "unlockRequirement": {
+        "previousLevel": "level-context-1",
+        "minStars": 2
       }
     }
   ],
   "lexemes": [
     {
-      "id": "apple",
-      "base": "apple",
-      "forms": {},
-      "translations": ["яблоко"],
-      "examples": ["I eat an apple every day"],
-      "distractors": {
-        "meaning": ["апельсин", "банан", "груша", "персик"]
-      },
-      "mastery": 0,
-      "recentMistakes": []
-    },
-    {
-      "id": "bread",
+      "id": "lex-bread",
       "base": "bread",
-      "forms": {},
+      "forms": {
+        "noun": "bread",
+        "plural": "breads"
+      },
       "translations": ["хлеб"],
-      "examples": ["She bought fresh bread"],
+      "examples": [
+        "I like to eat bread with butter."
+      ],
+      "examplesPlural": [
+        "Different breads have different tastes."
+      ],
       "distractors": {
-        "meaning": ["молоко", "масло", "сыр", "мясо"]
-      },
-      "mastery": 0,
-      "recentMistakes": []
+        "meaning": ["молоко", "яйцо"],
+        "form": ["bred", "braed"]
+      }
     },
     {
-      "id": "water",
-      "base": "water",
-      "forms": {},
-      "translations": ["вода"],
-      "examples": ["Drink more water every day"],
-      "distractors": {
-        "meaning": ["сок", "чай", "кофе", "молоко"]
-      },
-      "mastery": 0,
-      "recentMistakes": []
-    },
-    {
-      "id": "milk",
-      "base": "milk",
-      "forms": {},
-      "translations": ["молоко"],
-      "examples": ["He drinks milk for breakfast"],
-      "distractors": {
-        "meaning": ["вода", "сок", "чай", "кофе"]
-      },
-      "mastery": 0,
-      "recentMistakes": []
-    },
-    {
-      "id": "cheese",
-      "base": "cheese",
-      "forms": {},
-      "translations": ["сыр"],
-      "examples": ["I like cheese sandwiches"],
-      "distractors": {
-        "meaning": ["масло", "хлеб", "мясо", "яйцо"]
-      },
-      "mastery": 0,
-      "recentMistakes": []
-    },
-    {
-      "id": "egg",
+      "id": "lex-egg",
       "base": "egg",
-      "forms": {},
+      "forms": {
+        "noun": "egg",
+        "plural": "eggs"
+      },
       "translations": ["яйцо"],
-      "examples": ["She cooked two eggs"],
+      "examples": [
+        "I had an egg for breakfast."
+      ],
+      "examplesPlural": [
+        "I had two eggs for breakfast."
+      ],
       "distractors": {
-        "meaning": ["сыр", "мясо", "рыба", "курица"]
-      },
-      "mastery": 0,
-      "recentMistakes": []
+        "meaning": ["курица", "рыба"],
+        "form": ["egs", "agg"]
+      }
     },
     {
-      "id": "meat",
-      "base": "meat",
-      "forms": {},
-      "translations": ["мясо"],
-      "examples": ["Do you eat meat?"],
-      "distractors": {
-        "meaning": ["рыба", "курица", "яйцо", "сыр"]
+      "id": "lex-apple",
+      "base": "apple",
+      "forms": {
+        "noun": "apple",
+        "plural": "apples"
       },
-      "mastery": 0,
-      "recentMistakes": []
+      "translations": ["яблоко"],
+      "examples": [
+        "An apple a day keeps the doctor away."
+      ],
+      "examplesPlural": [
+        "These apples are very sweet."
+      ],
+      "distractors": {
+        "meaning": ["апельсин", "банан"],
+        "form": ["aple", "appel"]
+      }
     },
     {
-      "id": "fish",
-      "base": "fish",
-      "forms": {},
-      "translations": ["рыба"],
-      "examples": ["We eat fish on Fridays"],
-      "distractors": {
-        "meaning": ["мясо", "курица", "креветка", "краб"]
-      },
-      "mastery": 0,
-      "recentMistakes": []
-    },
-    {
-      "id": "chicken",
-      "base": "chicken",
-      "forms": {},
-      "translations": ["курица"],
-      "examples": ["Grilled chicken is healthy"],
-      "distractors": {
-        "meaning": ["мясо", "рыба", "утка", "индейка"]
-      },
-      "mastery": 0,
-      "recentMistakes": []
-    },
-    {
-      "id": "rice",
-      "base": "rice",
-      "forms": {},
-      "translations": ["рис"],
-      "examples": ["Rice is a staple food"],
-      "distractors": {
-        "meaning": ["макароны", "хлеб", "картофель", "гречка"]
-      },
-      "mastery": 0,
-      "recentMistakes": []
-    },
-    {
-      "id": "potato",
-      "base": "potato",
-      "forms": {},
-      "translations": ["картофель"],
-      "examples": ["Mashed potatoes are delicious"],
-      "distractors": {
-        "meaning": ["рис", "морковь", "помидор", "огурец"]
-      },
-      "mastery": 0,
-      "recentMistakes": []
-    },
-    {
-      "id": "tomato",
-      "base": "tomato",
-      "forms": {},
-      "translations": ["помидор"],
-      "examples": ["Add tomatoes to the salad"],
-      "distractors": {
-        "meaning": ["огурец", "перец", "морковь", "лук"]
-      },
-      "mastery": 0,
-      "recentMistakes": []
-    },
-    {
-      "id": "carrot",
-      "base": "carrot",
-      "forms": {},
-      "translations": ["морковь"],
-      "examples": ["Carrots are good for your eyes"],
-      "distractors": {
-        "meaning": ["помидор", "картофель", "огурец", "свекла"]
-      },
-      "mastery": 0,
-      "recentMistakes": []
-    },
-    {
-      "id": "onion",
-      "base": "onion",
-      "forms": {},
-      "translations": ["лук"],
-      "examples": ["Chop the onion finely"],
-      "distractors": {
-        "meaning": ["чеснок", "перец", "помидор", "морковь"]
-      },
-      "mastery": 0,
-      "recentMistakes": []
-    },
-    {
-      "id": "banana",
-      "base": "banana",
-      "forms": {},
-      "translations": ["банан"],
-      "examples": ["Bananas are high in potassium"],
-      "distractors": {
-        "meaning": ["яблоко", "апельсин", "груша", "киви"]
-      },
-      "mastery": 0,
-      "recentMistakes": []
-    },
-    {
-      "id": "orange",
+      "id": "lex-orange",
       "base": "orange",
-      "forms": {},
+      "forms": {
+        "noun": "orange",
+        "plural": "oranges"
+      },
       "translations": ["апельсин"],
-      "examples": ["Fresh orange juice is tasty"],
+      "examples": [
+        "I love fresh orange juice."
+      ],
+      "examplesPlural": [
+        "These oranges are from Spain."
+      ],
       "distractors": {
-        "meaning": ["мандарин", "лимон", "грейпфрут", "банан"]
-      },
-      "mastery": 0,
-      "recentMistakes": []
+        "meaning": ["лимон", "грейпфрут"],
+        "form": ["orang", "orenge"]
+      }
     },
     {
-      "id": "coffee",
+      "id": "lex-coffee",
       "base": "coffee",
-      "forms": {},
+      "forms": {
+        "noun": "coffee",
+        "plural": "coffees"
+      },
       "translations": ["кофе"],
-      "examples": ["I need coffee in the morning"],
+      "examples": [
+        "I need a cup of coffee in the morning."
+      ],
+      "examplesPlural": [
+        "Do you want two coffees or one?"
+      ],
       "distractors": {
-        "meaning": ["чай", "сок", "вода", "молоко"]
-      },
-      "mastery": 0,
-      "recentMistakes": []
+        "meaning": ["чай", "какао"],
+        "form": ["coffe", "coffie"]
+      }
     },
     {
-      "id": "tea",
+      "id": "lex-tea",
       "base": "tea",
-      "forms": {},
+      "forms": {
+        "noun": "tea",
+        "plural": "teas"
+      },
       "translations": ["чай"],
-      "examples": ["Green tea is very healthy"],
+      "examples": [
+        "Would you like a cup of tea?"
+      ],
+      "examplesPlural": [
+        "Green teas are very healthy."
+      ],
       "distractors": {
-        "meaning": ["кофе", "сок", "вода", "молоко"]
-      },
-      "mastery": 0,
-      "recentMistakes": []
+        "meaning": ["кофе", "сок"],
+        "form": ["tee", "teah"]
+      }
     },
     {
-      "id": "sugar",
-      "base": "sugar",
-      "forms": {},
-      "translations": ["сахар"],
-      "examples": ["Too much sugar is bad"],
-      "distractors": {
-        "meaning": ["соль", "перец", "мука", "мед"]
+      "id": "lex-cheese",
+      "base": "cheese",
+      "forms": {
+        "noun": "cheese",
+        "plural": "cheeses"
       },
-      "mastery": 0,
-      "recentMistakes": []
+      "translations": ["сыр"],
+      "examples": [
+        "I love cheese on my sandwich."
+      ],
+      "examplesPlural": [
+        "French cheeses are delicious."
+      ],
+      "distractors": {
+        "meaning": ["масло", "молоко"],
+        "form": ["chese", "cheeze"]
+      }
     },
     {
-      "id": "salt",
-      "base": "salt",
-      "forms": {},
-      "translations": ["соль"],
-      "examples": ["Add a pinch of salt"],
-      "distractors": {
-        "meaning": ["сахар", "перец", "специи", "уксус"]
+      "id": "lex-chicken",
+      "base": "chicken",
+      "forms": {
+        "noun": "chicken",
+        "plural": "chickens"
       },
-      "mastery": 0,
-      "recentMistakes": []
+      "translations": ["курица"],
+      "examples": [
+        "I had grilled chicken for lunch."
+      ],
+      "examplesPlural": [
+        "The farm has many chickens."
+      ],
+      "distractors": {
+        "meaning": ["рыба", "говядина"],
+        "form": ["chiken", "chicen"]
+      }
+    },
+    {
+      "id": "lex-vegetable",
+      "base": "vegetable",
+      "forms": {
+        "noun": "vegetable",
+        "plural": "vegetables"
+      },
+      "translations": ["овощ"],
+      "examples": [
+        "This vegetable is very healthy."
+      ],
+      "examplesPlural": [
+        "Eat more vegetables for health."
+      ],
+      "distractors": {
+        "meaning": ["фрукт", "салат"],
+        "form": ["vegatable", "vegtable"]
+      }
+    },
+    {
+      "id": "lex-fruit",
+      "base": "fruit",
+      "forms": {
+        "noun": "fruit",
+        "plural": "fruits"
+      },
+      "translations": ["фрукт"],
+      "examples": [
+        "An orange is a fruit."
+      ],
+      "examplesPlural": [
+        "Fresh fruits are very healthy."
+      ],
+      "distractors": {
+        "meaning": ["овощ", "ягода"],
+        "form": ["frut", "froot"]
+      }
+    },
+    {
+      "id": "lex-salad",
+      "base": "salad",
+      "forms": {
+        "noun": "salad",
+        "plural": "salads"
+      },
+      "translations": ["салат"],
+      "examples": [
+        "I'll have a Caesar salad."
+      ],
+      "examplesPlural": [
+        "These salads are very fresh."
+      ],
+      "distractors": {
+        "meaning": ["суп", "сэндвич"],
+        "form": ["salat", "salade"]
+      }
+    },
+    {
+      "id": "lex-soup",
+      "base": "soup",
+      "forms": {
+        "noun": "soup",
+        "plural": "soups"
+      },
+      "translations": ["суп"],
+      "examples": [
+        "I love hot soup in winter."
+      ],
+      "examplesPlural": [
+        "Different soups have different flavors."
+      ],
+      "distractors": {
+        "meaning": ["салат", "бульон"],
+        "form": ["soop", "soupe"]
+      }
+    },
+    {
+      "id": "lex-sandwich",
+      "base": "sandwich",
+      "forms": {
+        "noun": "sandwich",
+        "plural": "sandwiches"
+      },
+      "translations": ["бутерброд", "сэндвич"],
+      "examples": [
+        "I made a cheese sandwich."
+      ],
+      "examplesPlural": [
+        "These sandwiches are delicious."
+      ],
+      "distractors": {
+        "meaning": ["бургер", "хот-дог"],
+        "form": ["sandwitch", "sandwish"]
+      }
+    },
+    {
+      "id": "lex-pizza",
+      "base": "pizza",
+      "forms": {
+        "noun": "pizza",
+        "plural": "pizzas"
+      },
+      "translations": ["пицца"],
+      "examples": [
+        "Let's order a pizza tonight."
+      ],
+      "examplesPlural": [
+        "Italian pizzas are the best."
+      ],
+      "distractors": {
+        "meaning": ["паста", "бургер"],
+        "form": ["piza", "pitsa"]
+      }
     }
   ]
 }

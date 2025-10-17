@@ -1,48 +1,79 @@
-/**
- * Корневой компонент навигации
- * 
- * Настраивает стек навигации для всего приложения
- * с поддержкой жестов для улучшения UX
- */
-
 import { Stack } from 'expo-router';
-import 'react-native-gesture-handler';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function RootLayout() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <Stack
-        screenOptions={{
-          headerTitleAlign: 'center',
-          gestureEnabled: true,
-        }}
-      >
-        {/* Главный экран со списком паков */}
-        <Stack.Screen name="index" options={{ title: 'Word Rush' }} />
-        
-        {/* Детали пака — информация и старт игры */}
-        <Stack.Screen name="pack/[packId]" options={{ title: 'Пак слов' }} />
-        
-        {/* Игровой экран — жесты отключены во время игры */}
-        <Stack.Screen
-          name="run"
-          options={{
-            title: 'Игра',
-            gestureEnabled: false,
-            headerBackVisible: false,
-          }}
-        />
-        
-        {/* Экран результатов с итогами сессии */}
-        <Stack.Screen name="result" options={{ title: 'Результат' }} />
-        
-        {/* Словарь для повторения слов */}
-        <Stack.Screen name="dictionary" options={{ title: 'Словарь' }} />
-        
-        {/* Настройки приложения */}
-        <Stack.Screen name="settings" options={{ title: 'Настройки' }} />
-      </Stack>
-    </GestureHandlerRootView>
+    <Stack
+      screenOptions={{
+        headerShown: true,
+        headerStyle: {
+          backgroundColor: '#fff',
+        },
+        headerTintColor: '#000',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+        headerShadowVisible: true,
+      }}
+    >
+      {/* Главная - без header */}
+      <Stack.Screen 
+        name="index" 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      
+      {/* Настройки - модальное окно */}
+      <Stack.Screen 
+        name="settings" 
+        options={{ 
+          title: 'Настройки',
+          presentation: 'modal',
+          headerBackTitle: 'Закрыть',
+        }} 
+      />
+      
+      {/* Пак с уровнями */}
+      <Stack.Screen 
+        name="pack/[packId]" 
+        options={{ 
+          title: 'Уровни',
+          headerBackTitle: 'Главная',
+          animation: 'slide_from_right',
+        }} 
+      />
+      
+      {/* Словарь */}
+      <Stack.Screen 
+        name="dictionary" 
+        options={{ 
+          title: 'Словарь',
+          headerBackTitle: 'Назад',
+          animation: 'slide_from_right',
+        }} 
+      />
+      
+      {/* Игра - без header, без жестов */}
+      <Stack.Screen 
+        name="run" 
+        options={{ 
+          headerShown: false,
+          gestureEnabled: false,
+          animation: 'fade',
+        }} 
+      />
+      
+      {/* Результаты - без кнопки назад, без жестов */}
+      <Stack.Screen 
+        name="result" 
+        options={{ 
+          title: 'Результаты',
+          headerBackVisible: false,
+          gestureEnabled: false,
+          headerLeft: () => null,
+          animation: 'slide_from_bottom',
+        }} 
+      />
+    </Stack>
   );
 }

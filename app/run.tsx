@@ -1,13 +1,3 @@
-/**
- * Игровой экран с поддержкой системы уровней
- * 
- * Изменения:
- * - Добавлен параметр levelId
- * - Звуки и вибрация управляются настройками
- * - Прогресс автоматически сохраняется в levelProgress
- */
-
-import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { getPackById } from '@/lib/content';
 import { buildSessionPlan } from '@/lib/engine';
@@ -18,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, BackHandler, Modal, Pressable, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const BONUS_PER_SEC = 50;
 
@@ -99,10 +90,15 @@ export default function RunScreen() {
   const [options, setOptions] = useState(plan.slots[0]?.options ?? []);
   const [highlight, setHighlight] = useState<{ index: number; correct: boolean } | null>(null);
 
+  // Новое состояние для интерактивных типов
+  const [userAnswer, setUserAnswer] = useState<string>(''); // Для anagram/context
+
   useEffect(() => {
     const next = plan.slots[Math.min(slotIdx, plan.slots.length - 1)]?.options ?? [];
     setOptions([...next]);
     setHighlight(null);
+    setUserAnswer(''); // Сброс при смене слота
+    setUsedLetterIndices(new Set());
   }, [slotIdx, plan.slots]);
 
   const [livesLeft, setLivesLeft] = useState(effectiveLevel.lives);
@@ -202,7 +198,7 @@ export default function RunScreen() {
 
     const summary: RunSummary = {
       packId: pack.id,
-      levelId: levelId!, // Добавлен levelId
+      levelId: levelId!,
       score: finalScore,
       accuracy,
       errors: Array.from(new Set(scoreRef.current.errors.map((e) => ({ lexemeId: e })))),
@@ -212,6 +208,7 @@ export default function RunScreen() {
       answers: answersRef.current ?? [],
       timeBonus: extraScore > 0 ? extraScore : 0,
       comboMax: 0,
+      distractorMode: distractorMode ?? 'normal',
     };
 
     router.replace({ pathname: '/result', params: { summary: encodeURIComponent(JSON.stringify(summary)) } });
@@ -225,6 +222,23 @@ export default function RunScreen() {
     if (!slot || !opt) return;
 
     const isCorrect = !!opt.isCorrect;
+
+    const existingAnswerIndex = answersRef.current.findIndex(a => a.lexemeId === slot.lexemeId);
+    
+    if (existingAnswerIndex >= 0) {
+      answersRef.current[existingAnswerIndex].attempts += 1;
+      if (!isCorrect) {
+        answersRef.current[existingAnswerIndex].isCorrect = false;
+      }
+    } else {
+      answersRef.current.push({
+        lexemeId: slot.lexemeId,
+        isCorrect: isCorrect,
+        attempts: 1,
+        usedHint: false,
+        timeToAnswerMs: 0,
+      });
+    }
 
     if (isCorrect) {
       if (soundEnabled || hapticsEnabled) {
@@ -261,6 +275,68 @@ export default function RunScreen() {
     }, 300);
   };
 
+  /**
+   * Обработка ответа для anagram/context
+   */
+  const submitAnswer = async () => {
+    if (slotIdxRef.current >= plan.slots.length) return;
+
+    const slot = plan.slots[slotIdxRef.current];
+    if (!slot || !slot.correctAnswer) return;
+
+    const isCorrect = userAnswer.toLowerCase().trim() === slot.correctAnswer.toLowerCase();
+
+    const existingAnswerIndex = answersRef.current.findIndex(a => a.lexemeId === slot.lexemeId);
+    
+    if (existingAnswerIndex >= 0) {
+      answersRef.current[existingAnswerIndex].attempts += 1;
+      if (!isCorrect) {
+        answersRef.current[existingAnswerIndex].isCorrect = false;
+      }
+    } else {
+      answersRef.current.push({
+        lexemeId: slot.lexemeId,
+        isCorrect: isCorrect,
+        attempts: 1,
+        usedHint: false,
+        timeToAnswerMs: 0,
+      });
+    }
+
+    if (isCorrect) {
+      if (soundEnabled || hapticsEnabled) {
+        await sfxOk(hapticsEnabled);
+      }
+    } else {
+      if (soundEnabled || hapticsEnabled) {
+        await sfxFail(hapticsEnabled);
+      }
+
+      const newLives = livesLeft - 1;
+      setLivesLeft(newLives);
+
+      if (newLives <= 0) {
+        setTimeout(() => {
+          finishSession(0);
+        }, 500);
+        return;
+      }
+    }
+
+    setScoreState((st) => applyAnswer(st, isCorrect, slot.lexemeId));
+
+    setTimeout(() => {
+      const next = slotIdxRef.current + 1;
+      setSlotIdxWrapper(next);
+      setUserAnswer('');
+
+      if (next >= plan.slots.length) {
+        const bonus = remainingSeconds() * BONUS_PER_SEC;
+        finishSession(bonus);
+      }
+    }, 300);
+  };
+
   const remainingSeconds = () => {
     const now = Date.now();
     const pausedNow = pausedAccumRef.current + (pauseStartRef.current ? now - pauseStartRef.current : 0);
@@ -275,147 +351,301 @@ export default function RunScreen() {
   };
 
   const slot = plan.slots[Math.min(slotIdx, plan.slots.length - 1)];
-  const accuracy = scoreState.total > 0 ? scoreState.correct / scoreState.total : 0;
-  const stars = accuracy >= 0.95 ? 3 : accuracy >= 0.85 ? 2 : accuracy >= 0.70 ? 1 : 0;
+  // Новое состояние для отслеживания использованных букв по индексу
+  const [usedLetterIndices, setUsedLetterIndices] = useState<Set<number>>(new Set());
 
   return (
-    <ThemedView style={{ flex: 1, padding: 16, gap: 16 }}>
-      {/* HUD */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <ThemedText>Очки: {scoreState.score}</ThemedText>
-        <ThemedText>❤️ {livesLeft}</ThemedText>
-        <ThemedText>{timerLeft}s</ThemedText>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setPaused(true)}
-          style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: '#ccc' }}
-        >
-          <ThemedText>⏸</ThemedText>
-        </Pressable>
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }} edges={['top', 'left', 'right']}>
+      <ThemedView style={{ flex: 1, padding: 16, gap: 12, backgroundColor: '#000' }}>
+        {/* HUD */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff' }}>Очки: {scoreState.score}</Text>
+          <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff' }}>❤️ {livesLeft}</Text>
+          <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff' }}>{timerLeft}s</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setPaused(true)}
+            style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: '#333' }}
+          >
+            <Text style={{ fontSize: 18, color: '#fff' }}>⏸</Text>
+          </Pressable>
+        </View>
 
-      {/* Прогресс-бар времени */}
-      <View style={{ height: 10, backgroundColor: '#eee', borderRadius: 5 }}>
+        {/* Прогресс-бар */}
+        <View style={{ height: 8, backgroundColor: '#333', borderRadius: 4 }}>
+          <View
+            style={{
+              height: '100%',
+              width: `${((effectiveLevel.durationSec - timerLeft) / effectiveLevel.durationSec) * 100}%`,
+              backgroundColor: '#27ae60',
+              borderRadius: 4,
+            }}
+          />
+        </View>
+
+        {/* Индикатор слота */}
+        <View style={{ padding: 8, borderRadius: 8, backgroundColor: '#222', alignSelf: 'center' }}>
+          <Text style={{ fontSize: 14, color: '#fff' }}>
+            {Math.min(slotIdx + 1, plan.slots.length)}/{plan.slots.length}
+          </Text>
+        </View>
+
+        {/* Карточка вопроса */}
         <View
           style={{
-            height: '100%',
-            width: `${((effectiveLevel.durationSec - timerLeft) / effectiveLevel.durationSec) * 100}%`,
-            backgroundColor: '#27ae60',
-            borderRadius: 5,
+            padding: 20,
+            borderRadius: 16,
+            backgroundColor: '#fff',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 120,
+            gap: 12,
           }}
-        />
-      </View>
+        >
+          {/* Заголовок */}
+          <View style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#f5f5f5' }}>
+            <Text style={{ fontSize: 12, fontWeight: '600', color: '#666', textAlign: 'center' }}>
+              {slot.type === 'meaning' && '🔤 Выберите перевод'}
+              {slot.type === 'form' && '📝 Правильное написание'}
+              {slot.type === 'anagram' && '🔀 Соберите слово из букв'}
+              {slot.type === 'context' && '💡 Выберите правильную форму'}
+            </Text>
+          </View>
 
-      {/* Звёзды */}
-      <View style={{ flexDirection: 'row', gap: 6 }}>
-        {Array.from({ length: 3 }, (_, i) => (
-          <Text key={i} style={{ fontSize: 24, color: i < stars ? '#FFD700' : '#ccc' }}>
-            ★
+          {/* Текст вопроса */}
+          <Text style={{ fontSize: slot.type === 'context' ? 18 : 32, fontWeight: '700', color: '#000', textAlign: 'center' }}>
+            {slot.prompt}
           </Text>
-        ))}
-      </View>
+        </View>
 
-      {/* Индикатор слота */}
-      <View style={{ padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#eee' }}>
-        <ThemedText>
-          {Math.min(slotIdx + 1, plan.slots.length)}/{plan.slots.length}
-        </ThemedText>
-      </View>
+        {/* ВАРИАНТЫ ОТВЕТА */}
+        {(slot.type === 'meaning' || slot.type === 'form') && (
+          <View style={{ flex: 1, flexDirection: 'row', gap: 12 }}>
+            {options.map((opt, i) => {
+              let bgColor = '#FFFFFF';
+              if (highlight && highlight.index === i) {
+                bgColor = highlight.correct ? '#27ae60' : '#eb5757';
+              }
 
-      {/* Карточка вопроса */}
-      <View
-        style={{
-          padding: 16,
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: '#ddd',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: 100,
-        }}
-      >
-        <ThemedText style={{ fontSize: 28, fontWeight: '700' }}>{slot.prompt}</ThemedText>
-      </View>
+              return (
+                <View
+                  key={`${slot.index}-${i}-${opt.id}`}
+                  style={{
+                    flex: 1,
+                    borderWidth: 2,
+                    borderColor: '#333',
+                    borderRadius: 16,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    backgroundColor: bgColor,
+                  }}
+                >
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => answerPick(i as 0 | 1 | 2)}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      paddingHorizontal: 12,
+                    }}
+                  >
+                    <Text style={{ fontSize: 20, fontWeight: '600', textAlign: 'center', color: '#000' }}>{opt.id}</Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
+        )}
 
-      {/* Варианты ответов */}
-      <View style={{ flex: 1, flexDirection: 'row', gap: 12 }}>
-        {options.map((opt, i) => {
-          let bgColor = '#FFFFFF';
-          if (highlight && highlight.index === i) {
-            bgColor = highlight.correct ? '#27ae60' : '#eb5757';
-          }
-
-          return (
-            <View
-              key={`${slot.index}-${i}-${opt.id}`}
-              style={{
-                flex: 1,
-                borderWidth: 1,
-                borderColor: '#ccc',
-                borderRadius: 16,
-                justifyContent: 'center',
-                alignItems: 'center',
-                backgroundColor: bgColor,
-              }}
-            >
+        {/* АНАГРАММА */}
+        {slot.type === 'anagram' && slot.letters && (
+          <View style={{ flex: 1, gap: 16 }}>
+            {/* Поле ввода */}
+            <View style={{ padding: 16, borderRadius: 12, backgroundColor: '#fff', borderWidth: 2, borderColor: '#2196f3' }}>
+              <Text style={{ fontSize: 28, fontWeight: '700', color: '#000', textAlign: 'center', letterSpacing: 2 }}>
+                {userAnswer || '___'}
+              </Text>
+            </View>
+        
+            {/* Буквы для выбора */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+              {slot.letters.map((letter, i) => {
+                // Проверяем использована ли ЭТА КОНКРЕТНАЯ буква по индексу
+                const isUsed = usedLetterIndices.has(i);
+              
+                return (
+                  <Pressable
+                    key={i}
+                    onPress={() => {
+                      if (!isUsed) {
+                        setUserAnswer(prev => prev + letter);
+                        setUsedLetterIndices(prev => new Set([...prev, i]));
+                      }
+                    }}
+                    disabled={isUsed}
+                    style={{
+                      width: 50,
+                      height: 50,
+                      borderRadius: 12,
+                      backgroundColor: isUsed ? '#e0e0e0' : '#fff',
+                      borderWidth: 2,
+                      borderColor: isUsed ? '#9e9e9e' : '#333',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      opacity: isUsed ? 0.4 : 1,
+                    }}
+                  >
+                    <Text style={{ fontSize: 24, fontWeight: '700', color: isUsed ? '#9e9e9e' : '#000' }}>
+                      {letter.toUpperCase()}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            
+            {/* Кнопки управления */}
+            <View style={{ flexDirection: 'row', gap: 12 }}>
               <Pressable
-                accessibilityRole="button"
-                onPress={() => answerPick(i as 0 | 1 | 2)}
+                onPress={() => {
+                  // Удаляем последнюю букву и её индекс
+                  if (userAnswer.length > 0) {
+                    setUserAnswer(prev => prev.slice(0, -1));
+                    // Удаляем последний использованный индекс
+                    const indices = Array.from(usedLetterIndices);
+                    if (indices.length > 0) {
+                      indices.pop();
+                      setUsedLetterIndices(new Set(indices));
+                    }
+                  }
+                }}
+                disabled={userAnswer.length === 0}
                 style={{
-                  width: '100%',
-                  height: '100%',
-                  justifyContent: 'center',
+                  flex: 1,
+                  padding: 16,
+                  borderRadius: 12,
+                  backgroundColor: userAnswer.length > 0 ? '#ff9800' : '#ccc',
                   alignItems: 'center',
-                  paddingHorizontal: 8,
                 }}
               >
-                <Text style={{ fontSize: 20, fontWeight: '600', textAlign: 'center' }}>{opt.id}</Text>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff' }}>← Удалить</Text>
+              </Pressable>
+              
+              <Pressable
+                onPress={() => {
+                  // Очистить всё
+                  setUserAnswer('');
+                  setUsedLetterIndices(new Set());
+                }}
+                disabled={userAnswer.length === 0}
+                style={{
+                  flex: 1,
+                  padding: 16,
+                  borderRadius: 12,
+                  backgroundColor: userAnswer.length > 0 ? '#f44336' : '#ccc',
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff' }}>✕ Очистить</Text>
+              </Pressable>
+              
+              <Pressable
+                onPress={submitAnswer}
+                disabled={userAnswer.length === 0}
+                style={{
+                  flex: 2,
+                  padding: 16,
+                  borderRadius: 12,
+                  backgroundColor: userAnswer.length > 0 ? '#4caf50' : '#ccc',
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff' }}>✓ Проверить</Text>
               </Pressable>
             </View>
-          );
-        })}
-      </View>
+          </View>
+        )}
 
-      {/* Досрочное завершение */}
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => finishSession(remainingSeconds() * BONUS_PER_SEC)}
-        style={{ padding: 16, borderRadius: 12, backgroundColor: '#27ae60', alignItems: 'center' }}
-      >
-        <ThemedText style={{ color: 'white' }}>
-          Завершить досрочно (бонус: +{remainingSeconds() * BONUS_PER_SEC})
-        </ThemedText>
-      </Pressable>
-
-      {/* Модальное окно паузы */}
-      <Modal transparent visible={isPaused} animationType="fade" onRequestClose={resumeRun}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-          <View style={{ width: '100%', maxWidth: 420, backgroundColor: 'white', borderRadius: 16, padding: 20, gap: 12 }}>
-            <Text style={{ fontSize: 20, fontWeight: '600', textAlign: 'center' }}>Пауза</Text>
-            <Text style={{ textAlign: 'center' }}>Игра приостановлена. Продолжить или выйти?</Text>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={resumeRun}
-              style={{ padding: 14, borderRadius: 12, backgroundColor: '#2f80ed', alignItems: 'center' }}
-            >
-              <Text style={{ color: 'white', fontWeight: '600' }}>Продолжить</Text>
-            </Pressable>
-
-            <View style={{ padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#f2c94c', backgroundColor: '#fffbf0' }}>
-              <Text style={{ textAlign: 'center', fontSize: 14 }}>⚠️ Прогресс не будет сохранён при выходе.</Text>
+        {/* КОНТЕКСТ */}
+        {slot.type === 'context' && slot.words && (
+          <View style={{ flex: 1, gap: 16 }}>
+            {/* Выбранное слово */}
+            <View style={{ padding: 16, borderRadius: 12, backgroundColor: '#fff', borderWidth: 2, borderColor: '#2196f3' }}>
+              <Text style={{ fontSize: 24, fontWeight: '700', color: '#000', textAlign: 'center' }}>
+                {userAnswer || '?'}
+              </Text>
             </View>
 
+            {/* Варианты слов */}
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              {slot.words.map((word, i) => (
+                <Pressable
+                  key={i}
+                  onPress={() => setUserAnswer(word)}
+                  style={{
+                    flex: 1,
+                    padding: 20,
+                    borderRadius: 12,
+                    backgroundColor: userAnswer === word ? '#2196f3' : '#fff',
+                    borderWidth: 2,
+                    borderColor: '#333',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ fontSize: 20, fontWeight: '600', color: userAnswer === word ? '#fff' : '#000' }}>
+                    {word}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {/* Кнопка проверки */}
             <Pressable
-              accessibilityRole="button"
-              onPress={exitRun}
-              style={{ padding: 14, borderRadius: 12, backgroundColor: '#eb5757', alignItems: 'center' }}
+              onPress={submitAnswer}
+              disabled={userAnswer.length === 0}
+              style={{
+                padding: 16,
+                borderRadius: 12,
+                backgroundColor: userAnswer.length > 0 ? '#4caf50' : '#ccc',
+                alignItems: 'center',
+              }}
             >
-              <Text style={{ color: 'white', fontWeight: '700' }}>Выйти</Text>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff' }}>✓ Проверить</Text>
             </Pressable>
           </View>
-        </View>
-      </Modal>
-    </ThemedView>
+        )}
+
+        {/* Модальное окно паузы */}
+        <Modal transparent visible={isPaused} animationType="fade" onRequestClose={resumeRun}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+            <View style={{ width: '100%', maxWidth: 420, backgroundColor: 'white', borderRadius: 16, padding: 20, gap: 12 }}>
+              <Text style={{ fontSize: 20, fontWeight: '600', textAlign: 'center', color: '#000' }}>Пауза</Text>
+              <Text style={{ textAlign: 'center', color: '#666' }}>Игра приостановлена. Продолжить или выйти?</Text>
+
+              <Pressable
+                accessibilityRole="button"
+                onPress={resumeRun}
+                style={{ padding: 14, borderRadius: 12, backgroundColor: '#2f80ed', alignItems: 'center' }}
+              >
+                <Text style={{ color: 'white', fontWeight: '600' }}>Продолжить</Text>
+              </Pressable>
+
+              <View style={{ padding: 12, borderRadius: 12, backgroundColor: '#fffbf0', borderWidth: 1, borderColor: '#f2c94c' }}>
+                <Text style={{ textAlign: 'center', fontSize: 14, color: '#856404' }}>⚠️ Прогресс не будет сохранён при выходе.</Text>
+              </View>
+
+              <Pressable
+                accessibilityRole="button"
+                onPress={exitRun}
+                style={{ padding: 14, borderRadius: 12, backgroundColor: '#eb5757', alignItems: 'center' }}
+              >
+                <Text style={{ color: 'white', fontWeight: '700' }}>Выйти</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      </ThemedView>
+    </SafeAreaView>
   );
 }
