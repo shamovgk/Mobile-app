@@ -1,0 +1,481 @@
+{
+  "id": "pack-tech-1",
+  "title": "Технологии - базовый уровень",
+  "lang": "en",
+  "cefr": "A2",
+  "category": "technology",
+  "levels": [
+    {
+      "id": "level-1",
+      "title": "Введение",
+      "description": "Базовые термины: значения",
+      "order": 1,
+      "gameMode": "lives",
+      "config": {
+        "forkEverySec": 3,
+        "lanes": 2,
+        "allowedTypes": ["meaning"],
+        "lives": 3
+      },
+      "distractorMode": "easy",
+      "unlockRequirement": {
+        "minStars": 1
+      }
+    },
+    {
+      "id": "level-time-1",
+      "title": "Спринт технологий",
+      "description": "Термины на скорость",
+      "order": 2,
+      "gameMode": "time",
+      "config": {
+        "durationSec": 50,
+        "forkEverySec": 2.5,
+        "lanes": 2,
+        "allowedTypes": ["meaning"],
+        "freezeOnErrorSec": 2
+      },
+      "distractorMode": "easy",
+      "unlockRequirement": {
+        "previousLevel": "level-1",
+        "minStars": 1
+      }
+    },
+    {
+      "id": "level-2",
+      "title": "Ускорение",
+      "description": "Быстрее и больше слов",
+      "order": 3,
+      "gameMode": "lives",
+      "config": {
+        "forkEverySec": 2.5,
+        "lanes": 3,
+        "allowedTypes": ["meaning"],
+        "lives": 3
+      },
+      "distractorMode": "normal",
+      "unlockRequirement": {
+        "previousLevel": "level-time-1",
+        "minStars": 1
+      }
+    },
+    {
+      "id": "level-3",
+      "title": "Формы и глаголы",
+      "description": "Работа с формами технических терминов",
+      "order": 4,
+      "gameMode": "lives",
+      "config": {
+        "forkEverySec": 2.5,
+        "lanes": 2,
+        "allowedTypes": ["form"],
+        "lives": 3
+      },
+      "distractorMode": "normal",
+      "unlockRequirement": {
+        "previousLevel": "level-2",
+        "minStars": 1
+      }
+    },
+    {
+      "id": "level-time-2",
+      "title": "Формы на время",
+      "description": "Быстрая проверка форм",
+      "order": 5,
+      "gameMode": "time",
+      "config": {
+        "durationSec": 60,
+        "forkEverySec": 2.5,
+        "lanes": 3,
+        "allowedTypes": ["form"],
+        "freezeOnErrorSec": 3
+      },
+      "distractorMode": "normal",
+      "unlockRequirement": {
+        "previousLevel": "level-3",
+        "minStars": 1
+      }
+    },
+    {
+      "id": "level-4",
+      "title": "Правописание",
+      "description": "Соберите технические термины",
+      "order": 6,
+      "gameMode": "lives",
+      "config": {
+        "forkEverySec": 3,
+        "lanes": 3,
+        "allowedTypes": ["anagram"],
+        "lives": 5
+      },
+      "distractorMode": "normal",
+      "unlockRequirement": {
+        "previousLevel": "level-time-2",
+        "minStars": 1
+      }
+    },
+    {
+      "id": "level-time-3",
+      "title": "Анаграммы на время",
+      "description": "Соберите слова за ограниченное время",
+      "order": 7,
+      "gameMode": "time",
+      "config": {
+        "durationSec": 90,
+        "forkEverySec": 3,
+        "lanes": 3,
+        "allowedTypes": ["anagram"],
+        "freezeOnErrorSec": 3
+      },
+      "distractorMode": "hard",
+      "unlockRequirement": {
+        "previousLevel": "level-4",
+        "minStars": 1
+      }
+    },
+    {
+      "id": "level-ultimate",
+      "title": "Финальный вызов",
+      "description": "Все типы на максимальной сложности",
+      "order": 8,
+      "gameMode": "time",
+      "config": {
+        "durationSec": 120,
+        "forkEverySec": 2,
+        "lanes": 3,
+        "allowedTypes": ["meaning", "form", "anagram", "context"],
+        "freezeOnErrorSec": 3
+      },
+      "distractorMode": "hard",
+      "unlockRequirement": {
+        "previousLevel": "level-time-3",
+        "minStars": 2
+      }
+    }
+  ],
+  "lexemes": [
+    {
+      "id": "lex-computer",
+      "base": "computer",
+      "forms": {
+        "noun": "computer",
+        "plural": "computers"
+      },
+      "translations": ["компьютер"],
+      "examples": [
+        "I work on my computer every day."
+      ],
+      "examplesPlural": [
+        "Modern computers are very powerful."
+      ],
+      "distractors": {
+        "meaning": ["ноутбук", "телефон"],
+        "form": ["compter", "computor"]
+      }
+    },
+    {
+      "id": "lex-phone",
+      "base": "phone",
+      "forms": {
+        "noun": "phone",
+        "plural": "phones"
+      },
+      "translations": ["телефон"],
+      "examples": [
+        "Can I use your phone?"
+      ],
+      "examplesPlural": [
+        "Smart phones are everywhere now."
+      ],
+      "distractors": {
+        "meaning": ["планшет", "часы"],
+        "form": ["fone", "phon"]
+      }
+    },
+    {
+      "id": "lex-email",
+      "base": "email",
+      "forms": {
+        "noun": "email",
+        "plural": "emails"
+      },
+      "translations": ["электронная почта", "имейл"],
+      "examples": [
+        "Send me an email later."
+      ],
+      "examplesPlural": [
+        "I check my emails every morning."
+      ],
+      "distractors": {
+        "meaning": ["сообщение", "письмо"],
+        "form": ["e-mail", "emai"]
+      }
+    },
+    {
+      "id": "lex-website",
+      "base": "website",
+      "forms": {
+        "noun": "website",
+        "plural": "websites"
+      },
+      "translations": ["веб-сайт", "сайт"],
+      "examples": [
+        "Visit our website for more info."
+      ],
+      "examplesPlural": [
+        "These websites are very user-friendly."
+      ],
+      "distractors": {
+        "meaning": ["страница", "портал"],
+        "form": ["web-site", "websit"]
+      }
+    },
+    {
+      "id": "lex-password",
+      "base": "password",
+      "forms": {
+        "noun": "password",
+        "plural": "passwords"
+      },
+      "translations": ["пароль"],
+      "examples": [
+        "Enter your password to login."
+      ],
+      "examplesPlural": [
+        "Use strong passwords for security."
+      ],
+      "distractors": {
+        "meaning": ["логин", "код"],
+        "form": ["pasword", "passwrd"]
+      }
+    },
+    {
+      "id": "lex-download",
+      "base": "download",
+      "forms": {
+        "noun": "download",
+        "plural": "downloads"
+      },
+      "translations": ["скачивание", "загрузка"],
+      "examples": [
+        "The download is complete."
+      ],
+      "examplesPlural": [
+        "All downloads are saved here."
+      ],
+      "distractors": {
+        "meaning": ["загрузка", "установка"],
+        "form": ["downlad", "downlod"]
+      }
+    },
+    {
+      "id": "lex-application",
+      "base": "application",
+      "forms": {
+        "noun": "application",
+        "plural": "applications"
+      },
+      "translations": ["приложение"],
+      "examples": [
+        "Download the mobile application."
+      ],
+      "examplesPlural": [
+        "These applications are very popular."
+      ],
+      "distractors": {
+        "meaning": ["программа", "игра"],
+        "form": ["aplication", "aplicaton"]
+      }
+    },
+    {
+      "id": "lex-screen",
+      "base": "screen",
+      "forms": {
+        "noun": "screen",
+        "plural": "screens"
+      },
+      "translations": ["экран"],
+      "examples": [
+        "The screen is too bright."
+      ],
+      "examplesPlural": [
+        "Modern screens have high resolution."
+      ],
+      "distractors": {
+        "meaning": ["монитор", "дисплей"],
+        "form": ["scren", "screan"]
+      }
+    },
+    {
+      "id": "lex-keyboard",
+      "base": "keyboard",
+      "forms": {
+        "noun": "keyboard",
+        "plural": "keyboards"
+      },
+      "translations": ["клавиатура"],
+      "examples": [
+        "I need a new keyboard."
+      ],
+      "examplesPlural": [
+        "Mechanical keyboards are popular."
+      ],
+      "distractors": {
+        "meaning": ["мышь", "тачпад"],
+        "form": ["keybord", "keyborad"]
+      }
+    },
+    {
+      "id": "lex-mouse",
+      "base": "mouse",
+      "forms": {
+        "noun": "mouse",
+        "plural": "mice"
+      },
+      "translations": ["мышь", "мышка"],
+      "examples": [
+        "Click the mouse button."
+      ],
+      "examplesPlural": [
+        "Wireless mice are convenient."
+      ],
+      "distractors": {
+        "meaning": ["клавиатура", "трекпад"],
+        "form": ["mous", "mouce"]
+      }
+    },
+    {
+      "id": "lex-printer",
+      "base": "printer",
+      "forms": {
+        "noun": "printer",
+        "plural": "printers"
+      },
+      "translations": ["принтер"],
+      "examples": [
+        "The printer is out of ink."
+      ],
+      "examplesPlural": [
+        "We need color printers."
+      ],
+      "distractors": {
+        "meaning": ["сканер", "копир"],
+        "form": ["priner", "printr"]
+      }
+    },
+    {
+      "id": "lex-file",
+      "base": "file",
+      "forms": {
+        "noun": "file",
+        "plural": "files"
+      },
+      "translations": ["файл"],
+      "examples": [
+        "Save the file to your computer."
+      ],
+      "examplesPlural": [
+        "These files are important."
+      ],
+      "distractors": {
+        "meaning": ["папка", "документ"],
+        "form": ["flie", "fyle"]
+      }
+    },
+    {
+      "id": "lex-folder",
+      "base": "folder",
+      "forms": {
+        "noun": "folder",
+        "plural": "folders"
+      },
+      "translations": ["папка"],
+      "examples": [
+        "Create a new folder for photos."
+      ],
+      "examplesPlural": [
+        "All folders are organized by date."
+      ],
+      "distractors": {
+        "meaning": ["файл", "директория"],
+        "form": ["foldr", "folde"]
+      }
+    },
+    {
+      "id": "lex-virus",
+      "base": "virus",
+      "forms": {
+        "noun": "virus",
+        "plural": "viruses"
+      },
+      "translations": ["вирус"],
+      "examples": [
+        "My computer has a virus."
+      ],
+      "examplesPlural": [
+        "Computer viruses are dangerous."
+      ],
+      "distractors": {
+        "meaning": ["баг", "ошибка"],
+        "form": ["vyrus", "vrus"]
+      }
+    },
+    {
+      "id": "lex-backup",
+      "base": "backup",
+      "forms": {
+        "noun": "backup",
+        "plural": "backups"
+      },
+      "translations": ["резервная копия", "бэкап"],
+      "examples": [
+        "Make a backup of your data."
+      ],
+      "examplesPlural": [
+        "Keep multiple backups for safety."
+      ],
+      "distractors": {
+        "meaning": ["копия", "восстановление"],
+        "form": ["bakcup", "backp"]
+      }
+    },
+    {
+      "id": "lex-network",
+      "base": "network",
+      "forms": {
+        "noun": "network",
+        "plural": "networks"
+      },
+      "translations": ["сеть"],
+      "examples": [
+        "Connect to the WiFi network."
+      ],
+      "examplesPlural": [
+        "Social networks are popular."
+      ],
+      "distractors": {
+        "meaning": ["интернет", "соединение"],
+        "form": ["netwok", "netwerk"]
+      }
+    },
+    {
+      "id": "lex-server",
+      "base": "server",
+      "forms": {
+        "noun": "server",
+        "plural": "servers"
+      },
+      "translations": ["сервер"],
+      "examples": [
+        "The server is down."
+      ],
+      "examplesPlural": [
+        "Cloud servers are reliable."
+      ],
+      "distractors": {
+        "meaning": ["хост", "компьютер"],
+        "form": ["servor", "servr"]
+      }
+    }
+  ]
+}

@@ -1,0 +1,380 @@
+{
+  "id": "pack-env-1",
+  "title": "Окружающая среда - базовый",
+  "lang": "en",
+  "cefr": "B1",
+  "category": "environment",
+  "levels": [
+    {
+      "id": "level-1",
+      "title": "Эко-старт",
+      "description": "Базовые термины об экологии",
+      "order": 1,
+      "gameMode": "lives",
+      "config": {
+        "forkEverySec": 3.5,
+        "lanes": 2,
+        "allowedTypes": ["meaning"],
+        "lives": 4
+      },
+      "distractorMode": "easy",
+      "unlockRequirement": {
+        "minStars": 1
+      }
+    },
+    {
+      "id": "level-time-1",
+      "title": "Эко-спринт",
+      "description": "Быстрый раунд об экологии",
+      "order": 2,
+      "gameMode": "time",
+      "config": {
+        "durationSec": 60,
+        "forkEverySec": 3,
+        "lanes": 2,
+        "allowedTypes": ["meaning"],
+        "freezeOnErrorSec": 2
+      },
+      "distractorMode": "easy",
+      "unlockRequirement": {
+        "previousLevel": "level-1",
+        "minStars": 1
+      }
+    },
+    {
+      "id": "level-2",
+      "title": "Природа и климат",
+      "description": "Термины о природе",
+      "order": 3,
+      "gameMode": "lives",
+      "config": {
+        "forkEverySec": 3,
+        "lanes": 2,
+        "allowedTypes": ["meaning"],
+        "lives": 4
+      },
+      "distractorMode": "normal",
+      "unlockRequirement": {
+        "previousLevel": "level-time-1",
+        "minStars": 1
+      }
+    },
+    {
+      "id": "level-3",
+      "title": "Эко-эксперт",
+      "description": "Продвинутая лексика",
+      "order": 4,
+      "gameMode": "lives",
+      "config": {
+        "forkEverySec": 2.5,
+        "lanes": 3,
+        "allowedTypes": ["meaning"],
+        "lives": 3
+      },
+      "distractorMode": "hard",
+      "unlockRequirement": {
+        "previousLevel": "level-2",
+        "minStars": 1
+      }
+    },
+    {
+      "id": "level-time-2",
+      "title": "Зелёная гонка",
+      "description": "Испытание на скорость",
+      "order": 5,
+      "gameMode": "time",
+      "config": {
+        "durationSec": 50,
+        "forkEverySec": 2.5,
+        "lanes": 3,
+        "allowedTypes": ["meaning"],
+        "freezeOnErrorSec": 3
+      },
+      "distractorMode": "hard",
+      "unlockRequirement": {
+        "previousLevel": "level-3",
+        "minStars": 1
+      }
+    },
+    {
+      "id": "level-4",
+      "title": "Зелёный марафон",
+      "description": "Финальное испытание",
+      "order": 6,
+      "gameMode": "lives",
+      "config": {
+        "forkEverySec": 2,
+        "lanes": 3,
+        "allowedTypes": ["meaning"],
+        "lives": 3
+      },
+      "distractorMode": "hard",
+      "unlockRequirement": {
+        "previousLevel": "level-time-2",
+        "minStars": 2
+      }
+    }
+  ],
+  "lexemes": [
+    {
+      "id": "nature",
+      "base": "nature",
+      "forms": {
+        "noun": "nature"
+      },
+      "translations": ["природа"],
+      "examples": ["We must protect nature"],
+      "distractors": {
+        "meaning": ["среда", "экология", "климат", "погода"]
+      }
+    },
+    {
+      "id": "environment",
+      "base": "environment",
+      "forms": {
+        "noun": "environment",
+        "plural": "environments"
+      },
+      "translations": ["окружающая среда"],
+      "examples": ["Pollution harms the environment"],
+      "examplesPlural": ["Different environments need protection"],
+      "distractors": {
+        "meaning": ["природа", "экология", "атмосфера", "биосфера"]
+      }
+    },
+    {
+      "id": "pollution",
+      "base": "pollution",
+      "forms": {
+        "noun": "pollution"
+      },
+      "translations": ["загрязнение"],
+      "examples": ["Air pollution is dangerous"],
+      "distractors": {
+        "meaning": ["выбросы", "отходы", "мусор", "смог"]
+      }
+    },
+    {
+      "id": "recycle",
+      "base": "recycle",
+      "forms": {
+        "verb": "recycle",
+        "gerund": "recycling"
+      },
+      "translations": ["перерабатывать"],
+      "examples": ["Please recycle plastic bottles"],
+      "distractors": {
+        "meaning": ["утилизировать", "сортировать", "выбрасывать", "сжигать"],
+        "form": ["recicle", "recyle"]
+      }
+    },
+    {
+      "id": "waste",
+      "base": "waste",
+      "forms": {
+        "noun": "waste"
+      },
+      "translations": ["отходы"],
+      "examples": ["Reduce food waste"],
+      "distractors": {
+        "meaning": ["мусор", "загрязнение", "хлам", "остатки"]
+      }
+    },
+    {
+      "id": "energy",
+      "base": "energy",
+      "forms": {
+        "noun": "energy",
+        "plural": "energies"
+      },
+      "translations": ["энергия"],
+      "examples": ["Save energy at home"],
+      "examplesPlural": ["Renewable energies are important"],
+      "distractors": {
+        "meaning": ["электричество", "мощность", "топливо", "ресурс"]
+      }
+    },
+    {
+      "id": "forest",
+      "base": "forest",
+      "forms": {
+        "noun": "forest",
+        "plural": "forests"
+      },
+      "translations": ["лес"],
+      "examples": ["Forests produce oxygen"],
+      "examplesPlural": ["Tropical forests are disappearing"],
+      "distractors": {
+        "meaning": ["джунгли", "роща", "деревья", "парк"]
+      }
+    },
+    {
+      "id": "ocean",
+      "base": "ocean",
+      "forms": {
+        "noun": "ocean",
+        "plural": "oceans"
+      },
+      "translations": ["океан"],
+      "examples": ["The ocean is full of plastic"],
+      "examplesPlural": ["Our oceans need protection"],
+      "distractors": {
+        "meaning": ["море", "вода", "залив", "озеро"]
+      }
+    },
+    {
+      "id": "climate",
+      "base": "climate",
+      "forms": {
+        "noun": "climate",
+        "plural": "climates"
+      },
+      "translations": ["климат"],
+      "examples": ["Climate change is real"],
+      "examplesPlural": ["Different climates affect nature"],
+      "distractors": {
+        "meaning": ["погода", "температура", "атмосфера", "сезон"]
+      }
+    },
+    {
+      "id": "weather",
+      "base": "weather",
+      "forms": {
+        "noun": "weather"
+      },
+      "translations": ["погода"],
+      "examples": ["The weather is nice today"],
+      "distractors": {
+        "meaning": ["климат", "температура", "прогноз", "условия"]
+      }
+    },
+    {
+      "id": "temperature",
+      "base": "temperature",
+      "forms": {
+        "noun": "temperature",
+        "plural": "temperatures"
+      },
+      "translations": ["температура"],
+      "examples": ["Global temperature is rising"],
+      "examplesPlural": ["Ocean temperatures are increasing"],
+      "distractors": {
+        "meaning": ["жара", "холод", "градус", "тепло"]
+      }
+    },
+    {
+      "id": "wildlife",
+      "base": "wildlife",
+      "forms": {
+        "noun": "wildlife"
+      },
+      "translations": ["дикая природа"],
+      "examples": ["Wildlife is in danger"],
+      "distractors": {
+        "meaning": ["животные", "фауна", "звери", "биоразнообразие"]
+      }
+    },
+    {
+      "id": "species",
+      "base": "species",
+      "forms": {
+        "noun": "species"
+      },
+      "translations": ["вид"],
+      "examples": ["Many species are endangered"],
+      "distractors": {
+        "meaning": ["животное", "порода", "тип", "класс"]
+      }
+    },
+    {
+      "id": "carbon",
+      "base": "carbon",
+      "forms": {
+        "noun": "carbon"
+      },
+      "translations": ["углерод"],
+      "examples": ["Reduce carbon emissions"],
+      "distractors": {
+        "meaning": ["выбросы", "газ", "CO2", "элемент"]
+      }
+    },
+    {
+      "id": "renewable",
+      "base": "renewable",
+      "forms": {
+        "adjective": "renewable"
+      },
+      "translations": ["возобновляемый"],
+      "examples": ["Use renewable energy sources"],
+      "distractors": {
+        "meaning": ["чистый", "зеленый", "альтернативный", "экологичный"]
+      }
+    },
+    {
+      "id": "solar",
+      "base": "solar",
+      "forms": {
+        "adjective": "solar"
+      },
+      "translations": ["солнечный"],
+      "examples": ["Solar panels save money"],
+      "distractors": {
+        "meaning": ["ветровой", "водный", "геотермальный", "световой"]
+      }
+    },
+    {
+      "id": "plant",
+      "base": "plant",
+      "forms": {
+        "noun": "plant",
+        "plural": "plants"
+      },
+      "translations": ["растение"],
+      "examples": ["Plants need water and sun"],
+      "examplesPlural": ["These plants are native"],
+      "distractors": {
+        "meaning": ["дерево", "цветок", "трава", "куст"]
+      }
+    },
+    {
+      "id": "tree",
+      "base": "tree",
+      "forms": {
+        "noun": "tree",
+        "plural": "trees"
+      },
+      "translations": ["дерево"],
+      "examples": ["Plant more trees"],
+      "examplesPlural": ["Old trees store carbon"],
+      "distractors": {
+        "meaning": ["растение", "лес", "куст", "ветка"]
+      }
+    },
+    {
+      "id": "air",
+      "base": "air",
+      "forms": {
+        "noun": "air"
+      },
+      "translations": ["воздух"],
+      "examples": ["Clean air is essential"],
+      "distractors": {
+        "meaning": ["атмосфера", "кислород", "газ", "ветер"]
+      }
+    },
+    {
+      "id": "soil",
+      "base": "soil",
+      "forms": {
+        "noun": "soil",
+        "plural": "soils"
+      },
+      "translations": ["почва"],
+      "examples": ["Healthy soil grows food"],
+      "examplesPlural": ["Different soils need care"],
+      "distractors": {
+        "meaning": ["земля", "грунт", "песок", "глина"]
+      }
+    }
+  ]
+}

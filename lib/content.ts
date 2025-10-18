@@ -1,38 +1,40 @@
 /**
- * Модуль для работы с контентом (пакеты слов)
+ * Модуль загрузки контента
  */
 
-import packEnv1 from '@/assets/content/pack-env-1.json';
-import packFood1 from '@/assets/content/pack-food-1.json';
-import packTech1 from '@/assets/content/pack-tech-1.json';
-import type { Pack, PackMeta } from './types';
+import { packs as rawPacks } from '@/data/packs';
+import type { Lexeme, LexemeData, Pack } from './types';
 
-const packs: Pack[] = [
-  packFood1 as unknown as Pack,
-  packTech1 as unknown as Pack,
-  packEnv1 as unknown as Pack,
-];
-
-export function getPacks(): Pack[] {
-  return packs;
+/**
+ * Преобразует JSON лексему в полную лексему с дефолтными значениями
+ */
+function enrichLexeme(data: LexemeData): Lexeme {
+  return {
+    ...data,
+    mastery: 0,
+    recentMistakes: [],
+  };
 }
 
+/**
+ * Получает пак по ID с обогащёнными лексемами
+ */
 export function getPackById(id: string): Pack | undefined {
-  return packs.find((p) => p.id === id);
+  const rawPack = rawPacks[id];
+  if (!rawPack) return undefined;
+
+  return {
+    ...rawPack,
+    lexemes: rawPack.lexemes.map(enrichLexeme),
+  };
 }
 
-export function getPacksMeta(): PackMeta[] {
-  return packs.map((p) => ({
-    id: p.id,
-    title: p.title,
-    lang: p.lang,
-    cefr: p.cefr,
-    lexemeCount: p.lexemes.length,
-    category: p.category,
-    levelsCount: p.levels.length, // Добавлено
+/**
+ * Получает все паки
+ */
+export function getAllPacks(): Pack[] {
+  return Object.values(rawPacks).map((rawPack: any) => ({
+    ...rawPack,
+    lexemes: rawPack.lexemes.map(enrichLexeme),
   }));
-}
-
-export function getPacksByCategory(category: string): Pack[] {
-  return packs.filter((pack) => pack.category === category);
 }

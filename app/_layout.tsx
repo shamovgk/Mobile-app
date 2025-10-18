@@ -55,7 +55,7 @@ export default function RootLayout() {
       
       {/* Игра - без header, без жестов */}
       <Stack.Screen 
-        name="run" 
+        name="game/run" 
         options={{ 
           headerShown: false,
           gestureEnabled: false,

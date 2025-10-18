@@ -1,329 +1,74 @@
-/**
- * Экран выбора уровней с правильной навигацией
- */
-
-import { ThemedView } from '@/components/themed-view';
+import { LevelCard, PackHeader } from '@/components/pack';
+import { Container, Text } from '@/components/ui';
+import { COLORS } from '@/constants/design-system';
+import { usePackProgress } from '@/hooks/usePackProgress';
 import { getPackById } from '@/lib/content';
-import { getLevelProgress, isLevelUnlocked } from '@/lib/storage';
-import type { LevelProgress } from '@/lib/types';
-import { useFocusEffect } from '@react-navigation/native';
-import { Link, Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Link, Stack, useLocalSearchParams } from 'expo-router';
+import { FlatList, Pressable } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export default function PackDetailsScreen() {
+export default function PackScreen() {
   const { packId } = useLocalSearchParams<{ packId: string }>();
-  const router = useRouter();
   const pack = getPackById(packId!)!;
-
-  const [levelProgressMap, setLevelProgressMap] = useState<Record<string, LevelProgress>>({});
-
-  /**
-   * Загрузка прогресса при каждом фокусе на экране
-   */
-  useFocusEffect(
-    useCallback(() => {
-      (async () => {
-        const map: Record<string, LevelProgress> = {};
-        for (const level of pack.levels) {
-          map[level.id] = await getLevelProgress(pack.id, level.id);
-        }
-        setLevelProgressMap(map);
-      })();
-    }, [pack])
-  );
-
-  const totalLevels = pack.levels.length;
-  const completedLevels = Object.values(levelProgressMap).filter((p) => p?.completed).length;
-  const packProgress = totalLevels > 0 ? (completedLevels / totalLevels) * 100 : 0;
-  const isPackCompleted = completedLevels === totalLevels && totalLevels > 0;
-
-  const getBorderColor = (stars: number): string => {
-    if (stars === 3) return '#FFD700';
-    if (stars === 2) return '#C0C0C0';
-    if (stars === 1) return '#CD7F32';
-    return '#ddd';
-  };
-
-  const getBackgroundColor = (stars: number, unlocked: boolean): string => {
-    if (!unlocked) return '#f5f5f5';
-    if (stars === 3) return '#fffef5';
-    if (stars === 2) return '#fafafa';
-    if (stars === 1) return '#fff9f0';
-    return '#fff';
-  };
-
-  const getDifficultyEmoji = (mode: string): string => {
-    if (mode === 'hard') return '🔥';
-    if (mode === 'easy') return '🌱';
-    return '⚡';
-  };
+  const insets = useSafeAreaInsets();
+  
+  const { levelProgressMap, packSummary, isUnlocked } = usePackProgress(pack);
 
   return (
     <>
-      <Stack.Screen 
-        options={{ 
+      <Stack.Screen
+        options={{
           title: pack.title,
-          headerBackTitle: 'Главная',
-        }} 
+          headerStyle: {
+            backgroundColor: COLORS.primary,
+          },
+          headerTintColor: COLORS.white,
+          headerTitleAlign: 'center',
+          headerRight: () => (
+            <Link href={{ pathname: '/dictionary', params: { packId: pack.id } }} asChild>
+              <Pressable style={{ padding: 8, marginRight: 4 }}>
+                <Text style={{ fontSize: 22 }}>📖</Text>
+              </Pressable>
+            </Link>
+          ),
+        }}
       />
 
-      <ThemedView style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 8, gap: 16 }}>
-          {/* Информация о паке */}
-          <View
-            style={{
-              padding: 12,
-              borderRadius: 12,
-              backgroundColor: '#f5f5f5',
-              borderWidth: 1,
-              borderColor: '#ddd',
-            }}
-          >
-            <Text style={{ fontSize: 14, color: '#666' }}>
-              CEFR: {pack.cefr} • Слов: {pack.lexemes.length}
-            </Text>
-          </View>
-
-          {/* Прогресс пака */}
-          <View
-            style={{
-              padding: 16,
-              borderRadius: 12,
-              backgroundColor: isPackCompleted ? '#fffbea' : '#f5f5f5',
-              borderWidth: 2,
-              borderColor: isPackCompleted ? '#FFD700' : '#ddd',
-              gap: 8,
-            }}
-          >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: '#000' }}>
-                {isPackCompleted ? '🏆 Пак завершён!' : 'Прогресс пака'}
-              </Text>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: '#000' }}>
-                {completedLevels}/{totalLevels}
-              </Text>
-            </View>
-
-            <View style={{ height: 12, backgroundColor: '#eee', borderRadius: 6, overflow: 'hidden' }}>
-              <View
-                style={{
-                  height: '100%',
-                  width: `${packProgress}%`,
-                  backgroundColor: isPackCompleted ? '#FFD700' : '#2196f3',
-                  borderRadius: 6,
-                }}
-              />
-            </View>
-
-            <Text style={{ fontSize: 12, color: '#666' }}>
-              {isPackCompleted
-                ? '🎉 Все уровни пройдены на 3 звезды!'
-                : 'Завершите все уровни на 3★ для получения награды'}
-            </Text>
-          </View>
-
-          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#000' }}>Карта уровней</Text>
-
-          {/* Карта уровней */}
-          <View style={{ gap: 0 }}>
-            {pack.levels.map((level, index) => {
-              const progress = levelProgressMap[level.id];
-              const stars = progress?.stars ?? 0;
-              const unlocked = isLevelUnlocked(pack, level, levelProgressMap);
-              const borderColor = unlocked ? getBorderColor(stars) : '#ccc';
-              const backgroundColor = getBackgroundColor(stars, unlocked);
-              const isNew = unlocked && progress?.attempts === 0;
-              const isLastLevel = index === pack.levels.length - 1;
-
-              return (
-                <View key={level.id}>
-                  <Pressable
-                    disabled={!unlocked}
-                    onPress={() => {
-                      if (unlocked) {
-                        const levelStr = encodeURIComponent(JSON.stringify(level.config));
-                        router.push({
-                          pathname: '/run',
-                          params: {
-                            packId: pack.id,
-                            levelId: level.id,
-                            level: levelStr,
-                            seed: `${pack.id}-${level.id}-${Date.now()}`,
-                            mode: 'normal',
-                            distractorMode: level.distractorMode,
-                          },
-                        });
-                      }
-                    }}
-                    style={{
-                      padding: 16,
-                      borderRadius: 12,
-                      borderWidth: 2,
-                      borderColor,
-                      backgroundColor,
-                      opacity: unlocked ? 1 : 0.5,
-                      gap: 10,
-                    }}
-                  >
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <View
-                          style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 18,
-                            backgroundColor: unlocked ? borderColor : '#ccc',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                          }}
-                        >
-                          <Text style={{ fontSize: 16, fontWeight: '700', color: stars > 0 ? '#000' : '#fff' }}>
-                            {level.order}
-                          </Text>
-                        </View>
-                        <Text style={{ fontSize: 16, fontWeight: '600', color: '#000', flex: 1 }}>
-                          {level.title}
-                        </Text>
-                      </View>
-
-                      {!unlocked ? (
-                        <Text style={{ fontSize: 24 }}>🔒</Text>
-                      ) : isNew ? (
-                        <View
-                          style={{
-                            backgroundColor: '#4caf50',
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 8,
-                          }}
-                        >
-                          <Text style={{ color: 'white', fontSize: 10, fontWeight: '700' }}>NEW</Text>
-                        </View>
-                      ) : null}
-                    </View>
-
-                    <Text style={{ fontSize: 14, color: '#666', marginLeft: 44 }}>{level.description}</Text>
-
-                    <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap', marginLeft: 44 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Text style={{ fontSize: 14 }}>⏱️</Text>
-                        <Text style={{ fontSize: 12, color: '#000' }}>{level.config.durationSec}с</Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Text style={{ fontSize: 14 }}>❤️</Text>
-                        <Text style={{ fontSize: 12, color: '#000' }}>{level.config.lives}</Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Text style={{ fontSize: 14 }}>🎯</Text>
-                        <Text style={{ fontSize: 12, color: '#000' }}>{level.config.lanes} варианта</Text>
-                      </View>
-                                        
-                      {/* НОВОЕ: Типы вопросов */}
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Text style={{ fontSize: 14 }}>
-                          {level.config.allowedTypes.includes('anagram') ? '🔀' :
-                           level.config.allowedTypes.includes('context') ? '💡' :
-                           level.config.allowedTypes.includes('form') ? '📝' : '🔤'}
-                        </Text>
-                        <Text style={{ fontSize: 12, color: '#000' }}>
-                          {level.config.allowedTypes.map(t => {
-                            if (t === 'meaning') return 'Перевод';
-                            if (t === 'form') return 'Формы';
-                            if (t === 'anagram') return 'Анаграммы';
-                            if (t === 'context') return 'Контекст';
-                            return t;
-                          }).join(' + ')}
-                        </Text>
-                      </View>
-                        
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Text style={{ fontSize: 14 }}>{getDifficultyEmoji(level.distractorMode)}</Text>
-                        <Text style={{ fontSize: 12, color: '#000' }}>
-                          {level.distractorMode === 'hard'
-                            ? 'Сложно'
-                            : level.distractorMode === 'easy'
-                            ? 'Легко'
-                            : 'Нормально'}
-                        </Text>
-                      </View>
-                    </View>
-
-
-                    {unlocked && (
-                      <View style={{ gap: 6, marginLeft: 44 }}>
-                        <View style={{ flexDirection: 'row', gap: 4 }}>
-                          {Array.from({ length: 3 }, (_, i) => (
-                            <Text key={i} style={{ fontSize: 28, color: i < stars ? '#FFD700' : '#ddd' }}>
-                              ★
-                            </Text>
-                          ))}
-                        </View>
-
-                        {progress && progress.attempts > 0 && (
-                          <View style={{ gap: 2 }}>
-                            <Text style={{ fontSize: 12, color: '#000' }}>
-                              🏆 Рекорд: {progress.bestScore} очков ({Math.round(progress.bestAccuracy * 100)}%)
-                            </Text>
-                            <Text style={{ fontSize: 12, color: '#666' }}>Попыток: {progress.attempts}</Text>
-                          </View>
-                        )}
-                      </View>
-                    )}
-
-                    {!unlocked && level.unlockRequirement.previousLevel && (
-                      <View
-                        style={{
-                          padding: 8,
-                          borderRadius: 8,
-                          backgroundColor: '#fff3cd',
-                          borderWidth: 1,
-                          borderColor: '#ffc107',
-                          marginLeft: 44,
-                        }}
-                      >
-                        <Text style={{ fontSize: 12, color: '#856404' }}>
-                          ℹ️ Получите {level.unlockRequirement.minStars}★ на предыдущем уровне
-                        </Text>
-                      </View>
-                    )}
-                  </Pressable>
-
-                  {!isLastLevel && (
-                    <View
-                      style={{
-                        marginLeft: 33,
-                        width: 4,
-                        height: 16,
-                        backgroundColor: unlocked ? borderColor : '#ddd',
-                        opacity: 0.5,
-                      }}
-                    />
-                  )}
-                </View>
-              );
-            })}
-          </View>
-
-          {/* Кнопка словаря */}
-          <Link href={{ pathname: '/dictionary', params: { packId: pack.id } }} asChild>
-            <Pressable
-              style={{
-                padding: 14,
-                borderRadius: 12,
-                backgroundColor: '#2196f3',
-                alignItems: 'center',
+      <Container>
+        <FlatList
+          data={pack.levels}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ 
+            gap: 12,
+            paddingBottom: insets.bottom + 16,
+          }}
+          ListHeaderComponent={
+            <PackHeader
+              pack={pack}
+              masteredCount={packSummary.mastered}
+              totalWords={packSummary.total}
+              completedLevels={packSummary.completedLevels}
+              totalLevels={packSummary.totalLevels}
+            />
+          }
+          ListHeaderComponentStyle={{ marginBottom: 16 }}
+          renderItem={({ item }) => (
+            <LevelCard
+              level={item}
+              progress={levelProgressMap[item.id] || {
+                levelId: item.id,
+                stars: 0,
+                bestScore: 0,
+                bestAccuracy: 0,
+                completed: false,
+                attempts: 0,
               }}
-            >
-              <Text style={{ fontSize: 16, color: '#fff', fontWeight: '600' }}>
-                📖 Словарь пака ({pack.lexemes.length} слов)
-              </Text>
-            </Pressable>
-          </Link>
-
-          <View style={{ height: 16 }} />
-        </ScrollView>
-      </ThemedView>
+              isUnlocked={isUnlocked(item.id)}
+              packId={pack.id}
+            />
+          )}
+        />
+      </Container>
     </>
   );
 }
