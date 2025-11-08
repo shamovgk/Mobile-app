@@ -1,0 +1,187 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER & AUTHENTICATION
+// ============================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String?  @unique
+  passwordHash String?
+  displayName String
+  avatar    String?
+  isGuest   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile             Profile?
+  levelProgress       UserLevelProgress[]
+  attempts            LevelAttempt[]
+  achievements        UserAchievement[]
+
+  @@map("users")
+}
+
+model Profile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  totalXp   Int      @default(0)
+  level     Int      @default(1)
+  streak    Int      @default(0)
+  lastPlayedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+// ============================================
+// CONTENT
+// ============================================
+
+model Pack {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  description String?
+  language    String   @default("en")
+  difficulty  String
+  icon        String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  levels      Level[]
+  levelProgress UserLevelProgress[]
+
+  @@map("packs")
+}
+
+model Level {
+  id          String   @id @default(cuid())
+  packId      String
+  levelNumber Int
+  mode        String
+  difficulty  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  pack        Pack     @relation(fields: [packId], references: [id], onDelete: Cascade)
+  lexemes     LevelLexeme[]
+  levelProgress UserLevelProgress[]
+  attempts    LevelAttempt[]
+
+  @@unique([packId, levelNumber])
+  @@map("levels")
+}
+
+model Lexeme {
+  id          String   @id @default(cuid())
+  form        String   @unique
+  meaning     String
+  contexts    String[]
+  difficulty  Int      @default(1)
+  audio       String?
+  image       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  levels      LevelLexeme[]
+
+  @@map("lexemes")
+}
+
+model LevelLexeme {
+  levelId   String
+  lexemeId  String
+
+  level     Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  lexeme    Lexeme   @relation(fields: [lexemeId], references: [id], onDelete: Cascade)
+
+  @@id([levelId, lexemeId])
+  @@map("level_lexemes")
+}
+
+// ============================================
+// PROGRESS
+// ============================================
+
+model UserLevelProgress {
+  id        String   @id @default(cuid())
+  userId    String
+  levelId   String
+  packId    String
+  bestScore       Int      @default(0)
+  highestStars    Int      @default(0)
+  timesPlayed     Int      @default(0)
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level     Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  pack      Pack     @relation(fields: [packId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, levelId])
+  @@map("user_level_progress")
+}
+
+model LevelAttempt {
+  id        String   @id @default(cuid())
+  userId    String
+  levelId   String
+  score           Int
+  stars           Int      @default(0)
+  correctAnswers  Int
+  wrongAnswers    Int
+  duration        Int
+  completedAt     DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level     Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+
+  @@map("level_attempts")
+}
+
+// ============================================
+// ACHIEVEMENTS
+// ============================================
+
+model Achievement {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  title       String
+  description String
+  icon        String?
+  category    String   @default("levels")
+  rarity      String   @default("common")
+  xpReward    Int      @default(10)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}

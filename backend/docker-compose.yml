@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  # База данных PostgreSQL
+  postgres:
+    image: postgres:15-alpine           # Образ PostgreSQL версии 15 (лёгкая alpine-версия)
+    container_name: word-rush-db        # Имя контейнера для удобства
+    restart: always                     # Автоматический перезапуск при падении
+    environment:
+      POSTGRES_USER: wordrush           # Логин для подключения
+      POSTGRES_PASSWORD: dev_password_123  # Пароль (ИЗМЕНИТЕ В ПРОДАКШЕНЕ!)
+      POSTGRES_DB: wordrush_dev         # Название базы данных
+    ports:
+      - "5432:5432"                     # Проброс порта: локальный:внутри контейнера
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # Сохранение данных на диске
+
+  # Кэш-сервер Redis
+  redis:
+    image: redis:7-alpine               # Образ Redis версии 7
+    container_name: word-rush-redis
+    restart: always
+    ports:
+      - "6379:6379"                     # Стандартный порт Redis
+    volumes:
+      - redis_data:/data                # Сохранение данных Redis
+
+# Определяем тома (volumes) для сохранения данных между перезапусками
+volumes:
+  postgres_data:                        # Том для PostgreSQL
+  redis_data:                           # Том для Redis

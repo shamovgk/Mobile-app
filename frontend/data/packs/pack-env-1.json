@@ -1,0 +1,163 @@
+{
+  "id": "pack-env-1",
+  "title": "Окружающая среда - базовый",
+  "description": "Изучите базовую лексику об окружающей среде",
+  "language": "en",
+  "difficulty": "easy",
+  "icon": "🌍",
+  "order": 1,
+  "levels": [
+    {
+      "levelNumber": 1,
+      "mode": "lives",
+      "difficulty": "easy",
+      "allowedTypes": ["meaning"],
+      "lexemes": [
+        {
+          "form": "nature",
+          "meaning": "природа",
+          "contexts": ["We must protect nature"],
+          "difficulty": 1
+        },
+        {
+          "form": "environment",
+          "meaning": "окружающая среда",
+          "contexts": ["Pollution harms the environment"],
+          "difficulty": 1
+        },
+        {
+          "form": "pollution",
+          "meaning": "загрязнение",
+          "contexts": ["Air pollution is dangerous"],
+          "difficulty": 1
+        },
+        {
+          "form": "recycle",
+          "meaning": "перерабатывать",
+          "contexts": ["Please recycle plastic bottles"],
+          "difficulty": 1
+        },
+        {
+          "form": "waste",
+          "meaning": "отходы",
+          "contexts": ["Reduce food waste"],
+          "difficulty": 1
+        }
+      ]
+    },
+    {
+      "levelNumber": 2,
+      "mode": "lives",
+      "difficulty": "easy",
+      "allowedTypes": ["meaning", "form"],
+      "lexemes": [
+        {
+          "form": "climate",
+          "meaning": "климат",
+          "contexts": ["Climate change is real"],
+          "difficulty": 1
+        },
+        {
+          "form": "forest",
+          "meaning": "лес",
+          "contexts": ["Forests produce oxygen"],
+          "difficulty": 1
+        },
+        {
+          "form": "ocean",
+          "meaning": "океан",
+          "contexts": ["The ocean is full of life"],
+          "difficulty": 1
+        },
+        {
+          "form": "energy",
+          "meaning": "энергия",
+          "contexts": ["Solar energy is renewable"],
+          "difficulty": 1
+        },
+        {
+          "form": "species",
+          "meaning": "вид (животного/растения)",
+          "contexts": ["Many species are endangered"],
+          "difficulty": 2
+        }
+      ]
+    },
+    {
+      "levelNumber": 3,
+      "mode": "lives",
+      "difficulty": "medium",
+      "allowedTypes": ["meaning", "form", "context"],
+      "lexemes": [
+        {
+          "form": "sustainable",
+          "meaning": "устойчивый",
+          "contexts": ["We need sustainable development"],
+          "difficulty": 2
+        },
+        {
+          "form": "biodiversity",
+          "meaning": "биоразнообразие",
+          "contexts": ["Biodiversity is essential for life"],
+          "difficulty": 2
+        },
+        {
+          "form": "ecosystem",
+          "meaning": "экосистема",
+          "contexts": ["Every ecosystem has a balance"],
+          "difficulty": 2
+        },
+        {
+          "form": "renewable",
+          "meaning": "возобновляемый",
+          "contexts": ["Wind is a renewable energy source"],
+          "difficulty": 2
+        },
+        {
+          "form": "conservation",
+          "meaning": "сохранение",
+          "contexts": ["Wildlife conservation is important"],
+          "difficulty": 2
+        }
+      ]
+    },
+    {
+      "levelNumber": 4,
+      "mode": "timed",
+      "difficulty": "hard",
+      "allowedTypes": ["meaning", "form", "context", "anagram"],
+      "lexemes": [
+        {
+          "form": "deforestation",
+          "meaning": "вырубка лесов",
+          "contexts": ["Deforestation destroys habitats"],
+          "difficulty": 3
+        },
+        {
+          "form": "carbon",
+          "meaning": "углерод",
+          "contexts": ["Carbon emissions cause warming"],
+          "difficulty": 3
+        },
+        {
+          "form": "greenhouse",
+          "meaning": "парниковый",
+          "contexts": ["Greenhouse gases trap heat"],
+          "difficulty": 3
+        },
+        {
+          "form": "extinction",
+          "meaning": "вымирание",
+          "contexts": ["Many animals face extinction"],
+          "difficulty": 3
+        },
+        {
+          "form": "habitat",
+          "meaning": "среда обитания",
+          "contexts": ["Protect animal habitats"],
+          "difficulty": 3
+        }
+      ]
+    }
+  ]
+}
