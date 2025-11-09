@@ -1,8 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+export async function seedAchievements(prisma: PrismaClient) {
+  console.log('🏆 Добавление достижений...');
 
-async function seedAchievements() {
   const achievements = [
     {
       key: 'first_level',
@@ -31,6 +31,33 @@ async function seedAchievements() {
       rarity: 'rare',
       xpReward: 250,
     },
+    {
+      key: 'perfect_level',
+      title: 'Перфекционист',
+      description: 'Завершите уровень без ошибок',
+      icon: '💯',
+      category: 'performance',
+      rarity: 'rare',
+      xpReward: 150,
+    },
+    {
+      key: 'speed_demon',
+      title: 'Молниеносный',
+      description: 'Завершите уровень за 30 секунд',
+      icon: '⚡',
+      category: 'performance',
+      rarity: 'epic',
+      xpReward: 200,
+    },
+    {
+      key: 'first_pack',
+      title: 'Открыватель',
+      description: 'Завершите первый пак',
+      icon: '📦',
+      category: 'packs',
+      rarity: 'common',
+      xpReward: 300,
+    },
   ];
 
   for (const achievement of achievements) {
@@ -39,11 +66,22 @@ async function seedAchievements() {
       update: achievement,
       create: achievement,
     });
+    console.log(`   ├─ ${achievement.icon} ${achievement.title}`);
   }
 
-  console.log('✅ Достижения добавлены');
+  console.log(`   └─ Добавлено ${achievements.length} достижений`);
 }
 
-seedAchievements()
-  .catch((e) => console.error(e))
-  .finally(() => prisma.$disconnect());
+// Если файл запускается напрямую
+if (require.main === module) {
+  const prisma = new PrismaClient();
+  seedAchievements(prisma)
+    .catch((e) => {
+      console.error('❌ Ошибка seed достижений:');
+      console.error(e);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}

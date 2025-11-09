@@ -2,8 +2,6 @@ import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const prisma = new PrismaClient();
-
 // JSON структуры
 interface Lexeme {
   form: string;
@@ -33,10 +31,8 @@ interface PackData {
   levels: Level[];
 }
 
-async function main() {
-  console.log('🌱 Starting seed...');
-
-  // Очистить существующие данные (опционально)
+export async function seedContent(prisma: PrismaClient) {
+  // Очистить существующие данные
   console.log('🗑️  Очистка старых данных...');
   await prisma.levelLexeme.deleteMany();
   await prisma.lexeme.deleteMany();
@@ -47,7 +43,7 @@ async function main() {
   const packsDir = path.join(__dirname, '../../frontend/data/packs');
   
   if (!fs.existsSync(packsDir)) {
-    throw new Error(`Пакс директория не найдена: ${packsDir}`);
+    throw new Error(`Директория паков не найдена: ${packsDir}`);
   }
 
   const packFiles = fs
@@ -124,16 +120,18 @@ async function main() {
 
     console.log(`✅ Завершён пак: ${packData.levels.length} уровней\n`);
   }
-
-  console.log('🎉 Seed завершён!');
 }
 
-main()
-  .catch((e) => {
-    console.error('❌ Ошибка seed:');
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+// Если файл запускается напрямую
+if (require.main === module) {
+  const prisma = new PrismaClient();
+  seedContent(prisma)
+    .catch((e) => {
+      console.error('❌ Ошибка seed контента:');
+      console.error(e);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}
