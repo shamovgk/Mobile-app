@@ -1,121 +1,140 @@
-// lib/stores/auth.store.ts
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiClient } from '../api/client';
 
 interface User {
   id: string;
-  email?: string;
+  email: string | null;
   displayName: string;
+  avatar: string | null;
   isGuest: boolean;
+  profile?: {
+    totalXp: number;
+    level: number;
+    streak: number;
+    lastPlayedAt: string | null;
+  };
 }
 
-interface AuthStore {
+interface AuthState {
   user: User | null;
+  accessToken: string | null;
+  refreshToken: string | null;
   isLoading: boolean;
-  token: string | null;
-  initAuth: () => Promise<void>;
+  
+  // Actions
+  setUser: (user: User) => void;
+  setTokens: (accessToken: string, refreshToken: string) => void;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, displayName: string) => Promise<void>;
   loginAsGuest: () => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
+  refreshUserProfile: () => Promise<void>;
+  initAuth: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthStore>((set) => ({
-  user: null,
-  isLoading: true,
-  token: null,
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set, get) => ({
+      user: null,
+      accessToken: null,
+      refreshToken: null,
+      isLoading: true,
 
-  initAuth: async () => {
-    try {
-      // Проверить сохранённый токен в AsyncStorage
-      const token = await AsyncStorage.getItem('auth_token');
+      setUser: (user) => set({ user }),
       
-      if (token) {
-        // Установить token в заголовки
-        apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      setTokens: (accessToken, refreshToken) => {
+        set({ accessToken, refreshToken });
+        // Установить токен в axios
+        apiClient.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+      },
+
+      login: async (email, password) => {
+        const { data } = await apiClient.post('/auth/login', { email, password });
         
-        // Проверить профиль
-        const response = await apiClient.get('/auth/profile');
-        set({ 
-          user: response.data, 
-          token,
-          isLoading: false 
+        get().setTokens(data.accessToken, data.refreshToken);
+        set({ user: data.user });
+      },
+
+      register: async (email, password, displayName) => {
+        const { data } = await apiClient.post('/auth/register', {
+          email,
+          password,
+          displayName,
         });
-      } else {
-        // Нет токена - переход в auth
-        set({ 
-          user: null, 
-          token: null,
-          isLoading: false 
-        });
-      }
-    } catch (error) {
-      console.error('Auth init error:', error);
-      // Очистить всё при ошибке
-      await AsyncStorage.removeItem('auth_token');
-      apiClient.defaults.headers.common['Authorization'] = '';
-      set({ 
-        user: null, 
-        token: null,
-        isLoading: false 
-      });
+        
+        get().setTokens(data.accessToken, data.refreshToken);
+        set({ user: data.user });
+      },
+
+      loginAsGuest: async () => {
+        const { data } = await apiClient.post('/auth/guest');
+        
+        get().setTokens(data.accessToken, data.refreshToken);
+        set({ user: data.user });
+      },
+
+      logout: async () => {
+        set({ user: null, accessToken: null, refreshToken: null });
+        delete apiClient.defaults.headers.common['Authorization'];
+      },
+
+      // ✅ НОВОЕ: Обновить профиль пользователя
+      refreshUserProfile: async () => {
+        try {
+          const { data } = await apiClient.get('/auth/profile');
+          set({ user: data });
+        } catch (error) {
+          console.error('Failed to refresh profile:', error);
+        }
+      },
+
+      // Инициализация при старте приложения
+      initAuth: async () => {
+        const { accessToken, refreshToken } = get();
+        
+        if (!accessToken) {
+          set({ isLoading: false });
+          return;
+        }
+
+        try {
+          // Установить токен в axios
+          apiClient.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+          
+          // Попытаться загрузить профиль
+          const { data } = await apiClient.get('/auth/profile');
+          set({ user: data, isLoading: false });
+        } catch (error: any) {
+          console.error('Auth init error:', error);
+          
+          // Если 401 - попробовать рефреш токен
+          if (error.response?.status === 401 && refreshToken) {
+            try {
+              const { data } = await apiClient.post('/auth/refresh', { refreshToken });
+              get().setTokens(data.accessToken, data.refreshToken);
+              set({ user: data.user, isLoading: false });
+            } catch (refreshError) {
+              // Рефреш не удался - выйти
+              await get().logout();
+              set({ isLoading: false });
+            }
+          } else {
+            await get().logout();
+            set({ isLoading: false });
+          }
+        }
+      },
+    }),
+    {
+      name: 'auth-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({
+        user: state.user,
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
+      }),
     }
-  },
-
-  login: async (email, password) => {
-    try {
-      const response = await apiClient.post('/auth/login', { email, password });
-      const { user, accessToken } = response.data;
-
-      // Сохранить токен
-      await AsyncStorage.setItem('auth_token', accessToken);
-      apiClient.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
-
-      set({ user, token: accessToken });
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
-    }
-  },
-
-  register: async (email, password, displayName) => {
-    try {
-      const response = await apiClient.post('/auth/register', {
-        email,
-        password,
-        displayName,
-      });
-      const { user, accessToken } = response.data;
-
-      await AsyncStorage.setItem('auth_token', accessToken);
-      apiClient.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
-
-      set({ user, token: accessToken });
-    } catch (error) {
-      console.error('Register error:', error);
-      throw error;
-    }
-  },
-
-  loginAsGuest: async () => {
-    try {
-      const response = await apiClient.post('/auth/guest');
-      const { user, accessToken } = response.data;
-
-      await AsyncStorage.setItem('auth_token', accessToken);
-      apiClient.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
-
-      set({ user, token: accessToken });
-    } catch (error) {
-      console.error('Guest login error:', error);
-      throw error;
-    }
-  },
-
-  logout: async () => {
-    await AsyncStorage.removeItem('auth_token');
-    apiClient.defaults.headers.common['Authorization'] = '';
-    set({ user: null, token: null });
-  },
-}));
+  )
+);

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -6,20 +6,32 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuthStore } from '@/lib/stores/auth.store';
 import { progressApi } from '@/lib/api/services/progress.service';
+import { useRefreshData } from '@/lib/hooks/useRefreshData';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  const { refreshAll } = useRefreshData();
 
-  const { data: progress, isLoading, error } = useQuery({
+  const { data: progress, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ['userProgress'],
     queryFn: progressApi.getProgress,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
+
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshAll();
+    }, [])
+  );
 
   if (isLoading) {
     return (
@@ -31,223 +43,130 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     await logout();
-    router.replace('/auth/login' as any);
+    router.replace('/(auth)/login' as any);
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Заголовок */}
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl refreshing={isRefetching} onRefresh={refreshAll} tintColor="#4A90E2" />
+      }
+    >
       <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>{user?.displayName || 'Игрок'}</Text>
-          <Text style={styles.subtitle}>
-            {user?.isGuest ? '👤 Гостевой режим' : '✅ Зарегистрирован'}
-          </Text>
-        </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Выйти</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Text style={styles.backButtonText}>← Назад</Text>
         </TouchableOpacity>
+        <Text style={styles.title}>{user?.displayName}</Text>
       </View>
 
-      {/* Статистика профиля */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Уровень</Text>
-          <Text style={styles.statValue}>{progress?.profile.level || 1}</Text>
+      <View style={styles.profileCard}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{user?.displayName?.charAt(0).toUpperCase() || '?'}</Text>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>XP</Text>
-          <Text style={styles.statValue}>{progress?.profile.totalXp || 0}</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Серия</Text>
-          <Text style={styles.statValue}>{progress?.profile.streak || 0}</Text>
-        </View>
-      </View>
 
-      {/* Достижения */}
-      {progress?.achievements && progress.achievements.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🏆 Достижения</Text>
-          <View style={styles.achievementsGrid}>
-            {progress.achievements.map((achievement) => (
-              <View key={achievement.id} style={styles.achievementCard}>
-                <Text style={styles.achievementIcon}>
-                  {achievement.achievement.icon}
-                </Text>
-                <Text style={styles.achievementTitle}>
-                  {achievement.achievement.title}
-                </Text>
-              </View>
-            ))}
+        <View style={styles.stats}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{user?.profile?.level || 1}</Text>
+            <Text style={styles.statLabel}>Уровень</Text>
           </View>
+
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{user?.profile?.totalXp || 0}</Text>
+            <Text style={styles.statLabel}>XP</Text>
+          </View>
+
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{user?.profile?.streak || 0}</Text>
+            <Text style={styles.statLabel}>Серия</Text>
+          </View>
+        </View>
+      </View>
+
+      {progress && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Пройдено уровней</Text>
+          {progress.levelProgress.map((lp: any) => (
+            <View key={lp.id} style={styles.levelCard}>
+              <Text style={styles.levelTitle}>
+                {lp.level.pack.title} - Уровень {lp.level.levelNumber}
+              </Text>
+              <View style={styles.levelStats}>
+                <Text style={styles.levelStat}>⭐ {lp.highestStars}/3</Text>
+                <Text style={styles.levelStat}>🏆 {lp.bestScore}</Text>
+              </View>
+            </View>
+          ))}
         </View>
       )}
 
-      {/* Прогресс по уровням */}
-      {progress?.levelProgress && progress.levelProgress.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📊 Прогресс</Text>
-          <Text style={styles.levelCount}>
-            Пройдено уровней: {progress.levelProgress.length}
-          </Text>
-          <View style={styles.progressBars}>
-            {progress.levelProgress.slice(0, 5).map((level, index) => (
-              <View key={index} style={styles.progressBar}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: `${(level.highestStars / 3) * 100}%`,
-                    },
-                  ]}
-                />
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
-
-      {/* Кнопка назад */}
-      <TouchableOpacity
-        onPress={() => router.back()}
-        style={styles.backButton}
-      >
-        <Text style={styles.backButtonText}>← Назад</Text>
+      <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+        <Text style={styles.logoutText}>Выйти</Text>
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F7FA',
-  },
+  container: { flex: 1, backgroundColor: '#F5F7FA' },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F5F7FA',
   },
-  content: {
+  content: { paddingBottom: 32 },
+  header: {
     paddingTop: 60,
     paddingHorizontal: 16,
-    paddingBottom: 32,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#2C3E50',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#7F8C8D',
-    marginTop: 4,
-  },
-  logoutButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingBottom: 16,
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E74C3C',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
   },
-  logoutText: {
-    color: '#E74C3C',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-  },
-  statCard: {
-    flex: 1,
+  backButton: { paddingVertical: 8, marginBottom: 8 },
+  backButtonText: { fontSize: 16, color: '#4A90E2' },
+  title: { fontSize: 28, fontWeight: 'bold', color: '#2C3E50' },
+  profileCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 24,
+    margin: 16,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  statLabel: {
-    fontSize: 12,
-    color: '#7F8C8D',
-    marginBottom: 8,
-  },
-  statValue: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#4A90E2',
-  },
-  section: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2C3E50',
-    marginBottom: 16,
-  },
-  levelCount: {
-    fontSize: 14,
-    color: '#7F8C8D',
-    marginBottom: 12,
-  },
-  achievementsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  achievementCard: {
-    width: '30%',
-    backgroundColor: '#F5F7FA',
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-  },
-  achievementIcon: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  achievementTitle: {
-    fontSize: 11,
-    color: '#2C3E50',
-    textAlign: 'center',
-  },
-  progressBars: {
-    gap: 8,
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: '#4A90E2',
-    borderRadius: 4,
-  },
-  backButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 16,
   },
-  backButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#4A90E2',
+  avatarText: { fontSize: 36, fontWeight: 'bold', color: '#FFFFFF' },
+  stats: { flexDirection: 'row', gap: 32 },
+  statItem: { alignItems: 'center' },
+  statValue: { fontSize: 24, fontWeight: 'bold', color: '#2C3E50' },
+  statLabel: { fontSize: 14, color: '#7F8C8D', marginTop: 4 },
+  section: { paddingHorizontal: 16, marginTop: 16 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#2C3E50', marginBottom: 12 },
+  levelCard: { backgroundColor: '#FFFFFF', borderRadius: 12, padding: 16, marginBottom: 8 },
+  levelTitle: { fontSize: 16, fontWeight: '600', color: '#2C3E50' },
+  levelStats: { flexDirection: 'row', gap: 16, marginTop: 8 },
+  levelStat: { fontSize: 14, color: '#7F8C8D' },
+  logoutButton: {
+    backgroundColor: '#E74C3C',
+    borderRadius: 12,
+    padding: 16,
+    margin: 16,
+    alignItems: 'center',
+    marginTop: 32,
   },
+  logoutText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
 });

@@ -8,79 +8,94 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { usePacks } from '@/lib/hooks/useContentFetch';
+import { useQuery } from '@tanstack/react-query';
+import { contentApi } from '@/lib/api/services/content.service';
 import { useAuthStore } from '@/lib/stores/auth.store';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { data: packs, isLoading, error } = usePacks();
-  const { user, logout } = useAuthStore();
-
-  const handleLogout = async () => {
-    await logout();
-    router.replace('/auth/login' as any);
-  };
+  const { user } = useAuthStore();
+  
+  const { data: packs, isLoading, error } = useQuery({
+    queryKey: ['packs'],
+    queryFn: contentApi.getPacks,
+  });
 
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#4A90E2" />
-        <Text style={styles.loadingText}>Загрузка паков...</Text>
+        <Text style={styles.loadingText}>Загрузка...</Text>
       </View>
     );
   }
 
-  if (error) {
+  if (error || !packs) {
     return (
       <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>❌ Ошибка загрузки</Text>
-        <Text style={styles.errorSubtext}>{error.message}</Text>
+        <Text style={styles.errorText}>Ошибка загрузки</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
+      {/* Header with Profile & Settings */}
       <View style={styles.header}>
-        <View>
+        <View style={styles.headerTop}>
           <Text style={styles.title}>Word Rush</Text>
-          <Text style={styles.welcomeText}>
-            Привет, {user?.displayName || 'Гость'}!
-          </Text>
-        </View>
+          
+          <View style={styles.headerIcons}>
+            {/* Settings Icon */}
+            <TouchableOpacity 
+              onPress={() => router.push('/(main)/settings')}
+              style={styles.iconButton}
+            >
+              <Text style={styles.iconText}>⚙️</Text>
+            </TouchableOpacity>
 
-        <View style={styles.headerButtons}>
-          <TouchableOpacity
-            onPress={() => router.push('/profile')}
-            style={styles.profileButton}
-          >
-            <Text style={styles.profileButtonText}>👤</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={handleLogout}
-            style={styles.logoutButton}
-          >
-            <Text style={styles.logoutButtonText}>Выйти</Text>
-          </TouchableOpacity>
+            {/* Profile Icon */}
+            <TouchableOpacity 
+              onPress={() => router.push('/(main)/profile')}
+              style={styles.iconButton}
+            >
+              <View style={styles.profileIcon}>
+                <Text style={styles.profileIconText}>
+                  {user?.displayName?.charAt(0).toUpperCase() || '?'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
+        
+        {/* Dictionary Button */}
+        <TouchableOpacity 
+          onPress={() => router.push('/(main)/dictionary')} 
+          style={styles.dictionaryButton}
+        >
+          <Text style={styles.dictionaryButtonText}>📖 Словарь</Text>
+        </TouchableOpacity>
       </View>
 
-      <Text style={styles.subtitle}>Выберите пак для изучения</Text>
-
+      {/* Pack List */}
       <FlatList
         data={packs}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.packCard}
-            onPress={() => router.push(`/pack/${item.id}`)}
+            onPress={() => router.push(`/(main)/pack/${item.id}`)}
           >
-            <Text style={styles.packTitle}>{item.title}</Text>
-            <Text style={styles.packDescription}>{item.description}</Text>
-            <View style={styles.packMeta}>
-              <Text style={styles.packDifficulty}>{item.difficulty}</Text>
-              <Text style={styles.packLevels}>{item.levelsCount} уровней</Text>
+            <View style={styles.packIcon}>
+              <Text style={styles.packIconText}>{item.icon || '📚'}</Text>
+            </View>
+            
+            <View style={styles.packInfo}>
+              <Text style={styles.packTitle}>{item.title}</Text>
+              <Text style={styles.packDescription}>{item.description}</Text>
+              <Text style={styles.packMeta}>
+                {item.levelsCount} уровней • {item.difficulty}
+              </Text>
             </View>
           </TouchableOpacity>
         )}
@@ -94,7 +109,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F7FA',
-    paddingTop: 60,
   },
   centerContainer: {
     flex: 1,
@@ -103,96 +117,108 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F7FA',
   },
   header: {
+    paddingTop: 60,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     color: '#2C3E50',
   },
-  welcomeText: {
-    fontSize: 14,
-    color: '#7F8C8D',
-    marginTop: 4,
-  },
-  headerButtons: {
+  headerIcons: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 12,
+    alignItems: 'center',
   },
-  profileButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F5F7FA',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iconText: {
+    fontSize: 20,
+  },
+  profileIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#4A90E2',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#357ABD',
   },
-  profileButtonText: {
-    fontSize: 20,
+  profileIconText: {
+    fontSize: 18,
     fontWeight: 'bold',
+    color: '#FFFFFF',
   },
-  logoutButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E74C3C',
+  dictionaryButton: {
+    backgroundColor: '#4A90E2',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
   },
-  logoutButtonText: {
-    color: '#E74C3C',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  subtitle: {
+  dictionaryButtonText: {
     fontSize: 16,
-    textAlign: 'center',
-    color: '#7F8C8D',
-    marginBottom: 24,
-    marginHorizontal: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 32,
+    padding: 16,
+    gap: 12,
   },
   packCard: {
+    flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
+  packIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#E3F2FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  packIconText: {
+    fontSize: 32,
+  },
+  packInfo: {
+    flex: 1,
+  },
   packTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#2C3E50',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   packDescription: {
     fontSize: 14,
     color: '#7F8C8D',
-    marginBottom: 12,
+    marginBottom: 4,
   },
   packMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  packDifficulty: {
-    fontSize: 12,
-    color: '#4A90E2',
-    textTransform: 'capitalize',
-  },
-  packLevels: {
     fontSize: 12,
     color: '#95A5A6',
   },
@@ -205,12 +231,5 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#E74C3C',
-    marginBottom: 8,
-  },
-  errorSubtext: {
-    fontSize: 14,
-    color: '#7F8C8D',
-    textAlign: 'center',
-    paddingHorizontal: 32,
   },
 });

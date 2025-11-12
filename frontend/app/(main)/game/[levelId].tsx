@@ -1,30 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ActivityIndicator,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { contentApi } from '@/lib/api/services/content.service';
 import { progressApi } from '@/lib/api/services/progress.service';
 import { buildSessionPlan } from '@/lib/game/engine';
-import type { SessionSlot, QuestionType } from '@/lib/types';
+import { useRefreshData } from '@/lib/hooks/useRefreshData';
+import type { SessionSlot } from '@/lib/types';
 
-// Import question components
 import { MeaningQuestion } from '@/components/game/MeaningQuestion';
 import { FormQuestion } from '@/components/game/FormQuestion';
 import { ContextQuestion } from '@/components/game/ContextQuestion';
 import { AnagramQuestion } from '@/components/game/AnagramQuestion';
+import { GameHUD } from '@/components/game/GameHUD';
+import { PauseModal } from '@/components/game/PauseModal';
 
 export default function GameScreen() {
   const router = useRouter();
   const { levelId } = useLocalSearchParams<{ levelId: string }>();
+  const { refreshAll } = useRefreshData();
 
-  // Загрузить уровень
   const { data: level, isLoading, error } = useQuery({
     queryKey: ['level', levelId],
     queryFn: async () => {
@@ -35,17 +30,16 @@ export default function GameScreen() {
     enabled: !!levelId,
   });
 
-  // Game state
   const [session, setSession] = useState<SessionSlot[] | null>(null);
   const [currentSlotIndex, setCurrentSlotIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
   const [combo, setCombo] = useState(0);
   const [errors, setErrors] = useState<string[]>([]);
+  const [isPaused, setIsPaused] = useState(false);
   const startTime = useState(Date.now())[0];
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Инициализировать игровую сессию
   useEffect(() => {
     if (level && !session) {
       const seed = `${levelId}-${Date.now()}`;
@@ -65,7 +59,7 @@ export default function GameScreen() {
         level: {
           durationSec: 120,
           lanes: 3,
-          allowedTypes: ['meaning', 'form', 'context', 'anagram'] as QuestionType[],
+          allowedTypes: ['meaning', 'form', 'context', 'anagram'],
           lives: 3,
         },
         seed,
@@ -76,7 +70,6 @@ export default function GameScreen() {
     }
   }, [level, session, levelId]);
 
-  // Loading states
   if (!levelId) {
     return (
       <View style={styles.centerContainer}>
@@ -126,6 +119,9 @@ export default function GameScreen() {
         duration,
       });
 
+      // ✅ Обновить все данные одним вызовом
+      await refreshAll();
+
       router.push({
         pathname: '/(main)/result',
         params: {
@@ -145,7 +141,6 @@ export default function GameScreen() {
     }
   };
 
-  // Check game over
   const isGameOver = lives <= 0 || currentSlotIndex >= session.length;
 
   if (isGameOver) {
@@ -159,11 +154,7 @@ export default function GameScreen() {
           {session.length - errors.length}/{session.length} правильных
         </Text>
 
-        <TouchableOpacity
-          onPress={handleGameEnd}
-          style={styles.button}
-          disabled={isSubmitting}
-        >
+        <TouchableOpacity onPress={handleGameEnd} style={styles.button} disabled={isSubmitting}>
           {isSubmitting ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
@@ -201,7 +192,6 @@ export default function GameScreen() {
     }
   };
 
-  // Render question by type
   const renderQuestion = () => {
     switch (currentSlot.type) {
       case 'meaning':
@@ -213,29 +203,28 @@ export default function GameScreen() {
       case 'anagram':
         return <AnagramQuestion slot={currentSlot} onAnswer={handleAnswer} />;
       default:
-        return <Text>Неизвестный тип вопроса</Text>;
+        return null;
     }
   };
 
   return (
     <View style={styles.container}>
-      {/* HUD */}
-      <View style={styles.hud}>
-        <Text style={styles.hudText}>❤️ {lives}</Text>
-        <Text style={styles.hudText}>
-          {currentSlotIndex + 1}/{session.length}
-        </Text>
-        <Text style={styles.hudText}>⭐ {Math.floor(score)}</Text>
-        {combo >= 3 && <Text style={styles.comboText}>🔥 x{combo}</Text>}
-      </View>
+      <GameHUD
+        score={score}
+        lives={lives}
+        currentQuestion={currentSlotIndex + 1}
+        totalQuestions={session.length}
+        combo={combo}
+        onPause={() => setIsPaused(true)}
+      />
 
-      {/* Question */}
-      {renderQuestion()}
+      <View style={{ flex: 1, paddingVertical: 24 }}>{renderQuestion()}</View>
 
-      {/* Exit Button */}
-      <TouchableOpacity onPress={() => router.back()} style={styles.exitButton}>
-        <Text style={styles.exitButtonText}>Выход</Text>
-      </TouchableOpacity>
+      <PauseModal
+        visible={isPaused}
+        onResume={() => setIsPaused(false)}
+        onExit={() => router.back()}
+      />
     </View>
   );
 }
@@ -253,35 +242,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F5F7FA',
     paddingHorizontal: 32,
-  },
-  hud: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    marginBottom: 24,
-    alignItems: 'center',
-  },
-  hudText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2C3E50',
-  },
-  comboText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#E74C3C',
-  },
-  exitButton: {
-    marginTop: 24,
-    padding: 12,
-    alignItems: 'center',
-  },
-  exitButtonText: {
-    fontSize: 16,
-    color: '#E74C3C',
   },
   loadingText: {
     marginTop: 12,

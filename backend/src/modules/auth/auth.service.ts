@@ -166,4 +166,35 @@ export class AuthService {
         refreshToken,
       };
     }
+
+    // Обновление токенов
+async refreshTokens(refreshToken: string) {
+  try {
+    const payload = await this.jwtService.verifyAsync(refreshToken);
+    
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        avatar: true,
+        isGuest: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const tokens = await this.generateTokens(user.id, user.email);
+
+    return {
+      user,
+      ...tokens,
+    };
+  } catch (error) {
+    throw new UnauthorizedException('Invalid refresh token');
+  }
+}
 }

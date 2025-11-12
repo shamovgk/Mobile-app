@@ -25,4 +25,9 @@ export class ProgressController {
   async getLevelAttempts(@Request() req, @Param('levelId') levelId: string) {
     return this.progressService.getLevelAttempts(req.user.id, levelId);
   }
+
+  @Get('dictionary')
+  async getDictionary(@Request() req: any) {
+    return this.progressService.getUserDictionary(req.user.id);
+  }
 }

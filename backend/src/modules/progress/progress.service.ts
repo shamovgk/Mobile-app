@@ -194,4 +194,119 @@ export class ProgressService {
       });
     }
   }
+
+  async getUserDictionary(userId: string) {
+  // Получить все попытки пользователя
+  const attempts = await this.prisma.levelAttempt.findMany({
+    where: { userId },
+    include: {
+      level: {
+        include: {
+          lexemes: {
+            include: {
+              lexeme: true,
+            },
+          },
+          pack: {
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: { completedAt: 'desc' },
+  });
+
+  // Сгруппировать по словам
+  const lexemeMap = new Map<string, {
+    lexeme: any;
+    totalAttempts: number;
+    correctAttempts: number;
+    wrongAttempts: number;
+    lastSeenAt: Date;
+    packTitles: Set<string>;
+  }>();
+
+  for (const attempt of attempts) {
+    for (const levelLexeme of attempt.level.lexemes) {
+      const lexeme = levelLexeme.lexeme;
+      const key = lexeme.id;
+
+      if (!lexemeMap.has(key)) {
+        lexemeMap.set(key, {
+          lexeme,
+          totalAttempts: 0,
+          correctAttempts: 0,
+          wrongAttempts: 0,
+          lastSeenAt: attempt.completedAt,
+          packTitles: new Set([attempt.level.pack.title]),
+        });
+      }
+
+      const entry = lexemeMap.get(key)!;
+      entry.totalAttempts += 1;
+
+      // Предполагаем, что правильность зависит от звёзд
+      if (attempt.stars >= 2) {
+        entry.correctAttempts += 1;
+      } else {
+        entry.wrongAttempts += 1;
+      }
+
+      if (attempt.completedAt > entry.lastSeenAt) {
+        entry.lastSeenAt = attempt.completedAt;
+      }
+
+      entry.packTitles.add(attempt.level.pack.title);
+    }
+  }
+
+  // Рассчитать мастерство (mastery)
+  const dictionary = Array.from(lexemeMap.entries()).map(([id, data]) => {
+    const accuracy = data.totalAttempts > 0 
+      ? data.correctAttempts / data.totalAttempts 
+      : 0;
+
+    // Mastery formula: 0-5 на основе точности и кол-ва повторений
+    let mastery = 0;
+    if (data.totalAttempts >= 1 && accuracy >= 0.8) mastery = 1;
+    if (data.totalAttempts >= 2 && accuracy >= 0.85) mastery = 2;
+    if (data.totalAttempts >= 3 && accuracy >= 0.9) mastery = 3;
+    if (data.totalAttempts >= 5 && accuracy >= 0.95) mastery = 4;
+    if (data.totalAttempts >= 8 && accuracy >= 0.98) mastery = 5;
+
+    return {
+      id: data.lexeme.id,
+      form: data.lexeme.form,
+      meaning: data.lexeme.meaning,
+      contexts: data.lexeme.contexts,
+      difficulty: data.lexeme.difficulty,
+      mastery,
+      totalAttempts: data.totalAttempts,
+      correctAttempts: data.correctAttempts,
+      wrongAttempts: data.wrongAttempts,
+      accuracy: Math.round(accuracy * 100),
+      lastSeenAt: data.lastSeenAt,
+      packs: Array.from(data.packTitles),
+    };
+  });
+
+  // Статистика
+  const stats = {
+    totalWords: dictionary.length,
+    mastered: dictionary.filter(w => w.mastery >= 5).length,
+    learning: dictionary.filter(w => w.mastery >= 1 && w.mastery < 5).length,
+    notStarted: dictionary.filter(w => w.mastery === 0).length,
+  };
+
+  return {
+    dictionary: dictionary.sort((a, b) => 
+      b.lastSeenAt.getTime() - a.lastSeenAt.getTime()
+    ),
+    stats,
+  };
+}
 }
