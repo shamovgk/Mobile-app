@@ -1,200 +1,269 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../database/prisma.service';
+import { LoggerService } from '../../common/logger/logger.service';
 import * as bcrypt from 'bcrypt';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+
+interface JwtPayload {
+  sub: string;
+  type: 'guest' | 'registered';
+}
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private logger: LoggerService,
   ) {}
 
-  // Регистрация нового пользователя
   async register(dto: RegisterDto) {
-    // Проверяем, существует ли email
-    const existingUser = await this.prisma.user.findUnique({
+    this.logger.log(`Registration attempt for email: ${dto.email}`, 'AuthService');
+
+    const existingUser = await this.prisma.registeredUser.findUnique({
       where: { email: dto.email },
     });
 
     if (existingUser) {
-      throw new ConflictException('Пользователь с таким email уже существует');
+      this.logger.warn(`Registration failed: Email ${dto.email} already exists`, 'AuthService');
+      throw new ConflictException('Email already registered');
     }
 
-    // Хэшируем пароль
     const passwordHash = await bcrypt.hash(dto.password, 10);
 
-    // Создаём пользователя
-    const user = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        passwordHash,
-        displayName: dto.displayName,
-        avatar: dto.avatar || null,
-        isGuest: false,
-        profile: {
-          create: {
-            totalXp: 0,
-            level: 1,
-            streak: 0,
-          },
+    const result = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          displayName: dto.displayName,
+          avatar: dto.avatar || null,
         },
-      },
-      select: {
-        id: true,
-        email: true,
-        displayName: true,
-        avatar: true,
-        isGuest: true,
-      },
+      });
+
+      await tx.registeredUser.create({
+        data: {
+          userId: user.id,
+          email: dto.email,
+          passwordHash,
+        },
+      });
+
+      await tx.profile.create({
+        data: {
+          userId: user.id,
+        },
+      });
+
+      this.logger.log(`User registered successfully: ${user.id} (${dto.email})`, 'AuthService');
+      return { user, email: dto.email };
     });
 
-    // Генерируем токены
-    const tokens = await this.generateTokens(user.id, user.email!);
-
-    return {
-      user,
-      ...tokens,
-    };
-  }
-
-  // Вход пользователя
-  async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-    });
-
-    if (!user || !user.passwordHash) {
-      throw new UnauthorizedException('Неверный email или пароль');
-    }
-
-    // Проверяем пароль
-    const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
-
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Неверный email или пароль');
-    }
-
-    // Генерируем токены
-    const tokens = await this.generateTokens(user.id, user.email!);
+    const tokens = await this.generateTokens(result.user.id, 'registered');
 
     return {
       user: {
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
-        avatar: user.avatar,
-        isGuest: user.isGuest,
+        id: result.user.id,
+        displayName: result.user.displayName,
+        avatar: result.user.avatar,
+        isGuest: false,
+        email: result.email,
       },
       ...tokens,
     };
   }
 
-  // Гостевой режим
-  async loginAsGuest() {
-    const guestName = `Guest${Math.floor(Math.random() * 10000)}`;
+  async login(dto: LoginDto) {
+    this.logger.log(`Login attempt for email: ${dto.email}`, 'AuthService');
 
-    const user = await this.prisma.user.create({
-      data: {
-        displayName: guestName,
-        isGuest: true,
-        profile: {
-          create: {
-            totalXp: 0,
-            level: 1,
-            streak: 0,
-          },
-        },
-      },
-      select: {
-        id: true,
-        email: true,
-        displayName: true,
-        avatar: true,
-        isGuest: true,
+    const registeredUser = await this.prisma.registeredUser.findUnique({
+      where: { email: dto.email },
+      include: {
+        user: true,
       },
     });
 
-    const tokens = await this.generateTokens(user.id, user.email);
-
-    return {
-      user,
-      ...tokens,
-    };
-  }
-
-  // Получить профиль текущего пользователя
-  async getProfile(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        displayName: true,
-        avatar: true,
-        isGuest: true,
-        profile: {
-          select: {
-            totalXp: true,
-            level: true,
-            streak: true,
-            lastPlayedAt: true,
-          },
-        },
-      },
-    });
-
-    return user;
-  }
-
-    // Генерация JWT токенов
-    private async generateTokens(userId: string, email: string | null) {
-      const payload = { sub: userId, email };
-
-      const accessToken = await this.jwtService.signAsync(payload, {
-        expiresIn: '15m',
-      });
-
-      const refreshToken = await this.jwtService.signAsync(payload, {
-        expiresIn: '30d',
-      });
-
-      return {
-        accessToken,
-        refreshToken,
-      };
+    if (!registeredUser) {
+      this.logger.warn(`Login failed: User not found for email ${dto.email}`, 'AuthService');
+      throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Обновление токенов
-async refreshTokens(refreshToken: string) {
-  try {
-    const payload = await this.jwtService.verifyAsync(refreshToken);
-    
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-      select: {
-        id: true,
-        email: true,
-        displayName: true,
-        avatar: true,
+    const isPasswordValid = await bcrypt.compare(
+      dto.password,
+      registeredUser.passwordHash,
+    );
+
+    if (!isPasswordValid) {
+      this.logger.warn(`Login failed: Invalid password for email ${dto.email}`, 'AuthService');
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    this.logger.log(`User logged in successfully: ${registeredUser.userId}`, 'AuthService');
+
+    const tokens = await this.generateTokens(registeredUser.userId, 'registered');
+
+    return {
+      user: {
+        id: registeredUser.user.id,
+        displayName: registeredUser.user.displayName,
+        avatar: registeredUser.user.avatar,
+        isGuest: false,
+        email: registeredUser.email,
+      },
+      ...tokens,
+    };
+  }
+
+  async loginAsGuest() {
+    this.logger.log('Guest login attempt', 'AuthService');
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          displayName: `Guest_${Date.now()}`,
+        },
+      });
+
+      await tx.guestUser.create({
+        data: {
+          userId: user.id,
+        },
+      });
+
+      await tx.profile.create({
+        data: {
+          userId: user.id,
+        },
+      });
+
+      this.logger.log(`Guest user created: ${user.id}`, 'AuthService');
+      return user;
+    });
+
+    const tokens = await this.generateTokens(result.id, 'guest');
+
+    return {
+      user: {
+        id: result.id,
+        displayName: result.displayName,
+        avatar: result.avatar,
         isGuest: true,
+        email: null,
+      },
+      ...tokens,
+    };
+  }
+
+  async getProfile(userId: string) {
+    this.logger.debug(`Fetching profile for user: ${userId}`, 'AuthService');
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        profile: true,
+        registeredUser: {
+          select: {
+            email: true,
+          },
+        },
+        guestUser: {
+          select: {
+            id: true,
+          },
+        },
       },
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid refresh token');
+      this.logger.error(`Profile not found for user: ${userId}`, '', 'AuthService');
+      throw new NotFoundException('User not found');
     }
 
-    const tokens = await this.generateTokens(user.id, user.email);
+    const isGuest = !!user.guestUser;
+    const email = user.registeredUser?.email || null;
 
     return {
-      user,
-      ...tokens,
+      id: user.id,
+      displayName: user.displayName,
+      avatar: user.avatar,
+      isGuest,
+      email,
+      profile: user.profile,
     };
-  } catch (error) {
-    throw new UnauthorizedException('Invalid refresh token');
   }
-}
+
+  private async generateTokens(
+    userId: string,
+    type: 'guest' | 'registered',
+  ) {
+    this.logger.debug(`Generating tokens for user: ${userId} (${type})`, 'AuthService');
+
+    const payload: JwtPayload = {
+      sub: userId,
+      type,
+    };
+
+    const accessToken = await this.jwtService.signAsync(payload, {
+      expiresIn: '15m',
+    });
+
+    const refreshToken = await this.jwtService.signAsync(payload, {
+      expiresIn: '30d',
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+    };
+  }
+
+  async refreshTokens(refreshToken: string) {
+    this.logger.log('Token refresh attempt', 'AuthService');
+    
+    try {
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken);
+
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+        include: {
+          registeredUser: {
+            select: {
+              email: true,
+            },
+          },
+          guestUser: {
+            select: {
+              id: true,
+            },
+          },
+        },
+      });
+
+      if (!user) {
+        this.logger.warn(`Token refresh failed: User ${payload.sub} not found`, 'AuthService');
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      this.logger.log(`Tokens refreshed successfully for user: ${user.id}`, 'AuthService');
+
+      const isGuest = !!user.guestUser;
+      const email = user.registeredUser?.email || null;
+
+      const tokens = await this.generateTokens(user.id, payload.type);
+
+      return {
+        user: {
+          id: user.id,
+          displayName: user.displayName,
+          avatar: user.avatar,
+          isGuest,
+          email,
+        },
+        ...tokens,
+      };
+    } catch (error) {
+      this.logger.error('Token refresh failed', error instanceof Error ? error.stack : '', 'AuthService');
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
 }

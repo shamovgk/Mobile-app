@@ -1,20 +1,30 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../database/prisma.service';
 
 interface JwtPayload {
   sub: string; // userId
-  email: string;
+  type: 'guest' | 'registered';
 }
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {
+    const secret = configService.get<string>('JWT_SECRET');
+    
+    if (!secret) {
+      throw new Error('JWT_SECRET is not configured');
+    }
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_SECRET || 'your-secret-key',
+      secretOrKey: secret,
     });
   }
 
@@ -23,17 +33,34 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       where: { id: payload.sub },
       select: {
         id: true,
-        email: true,
         displayName: true,
         avatar: true,
-        isGuest: true,
+        registeredUser: {
+          select: {
+            email: true,
+          },
+        },
+        guestUser: {
+          select: {
+            id: true,
+          },
+        },
       },
     });
 
     if (!user) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('User not found');
     }
 
-    return user;
+    const isGuest = !!user.guestUser;
+    const email = user.registeredUser?.email || null;
+
+    return {
+      id: user.id,
+      displayName: user.displayName,
+      avatar: user.avatar,
+      isGuest,
+      email,
+    };
   }
 }

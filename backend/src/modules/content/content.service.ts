@@ -1,36 +1,72 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { LoggerService } from '../../common/logger/logger.service';
+import { Lexeme, Level, Pack } from '@prisma/client';
+
+type QuestionType = 'meaning' | 'form' | 'context' | 'anagram';
+
+export interface GeneratedQuestion {
+  type: QuestionType;
+  lexemeId: string;
+  prompt: string;
+  correctAnswer: string;
+  options?: string[];
+  context?: string;
+}
+
+export interface LevelGenerationResponse {
+  id: string;
+  levelNumber: number;
+  mode: string;
+  difficulty: string;
+  timeLimit: number | null;
+  lives: number | null;
+  targetScore: number;
+  seed: number;
+  questions: GeneratedQuestion[];
+  lexemes: Array<{
+    id: string;
+    form: string;
+    meaning: string;
+    contexts: string[];
+    difficulty: number;
+  }>;
+}
 
 @Injectable()
 export class ContentService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private logger: LoggerService,
+  ) {}
 
-  // Получить все паки
-  async getAllPacks() {
+  async getPacks() {
+    this.logger.log('Fetching all packs', 'ContentService');
+
     const packs = await this.prisma.pack.findMany({
-      orderBy: { order: 'asc' },
       include: {
         _count: {
-          select: { levels: true }, // Считаем количество уровней
+          select: { levels: true },
         },
       },
     });
 
+    this.logger.log(`Fetched ${packs.length} packs`, 'ContentService');
+
     return packs.map((pack) => ({
       id: pack.id,
-      slug: pack.slug,
       title: pack.title,
+      slug: pack.slug,
       description: pack.description,
-      language: pack.language,
-      difficulty: pack.difficulty,
       icon: pack.icon,
-      order: pack.order,
+      difficulty: pack.difficulty,
       levelsCount: pack._count.levels,
     }));
   }
 
-  // Получить детали пака с уровнями
-  async getPackById(packId: string) {
+  async getPack(packId: string) {
+    this.logger.log(`Fetching pack: ${packId}`, 'ContentService');
+
     const pack = await this.prisma.pack.findUnique({
       where: { id: packId },
       include: {
@@ -38,7 +74,7 @@ export class ContentService {
           orderBy: { levelNumber: 'asc' },
           include: {
             _count: {
-              select: { lexemes: true }, // Считаем слова в каждом уровне
+              select: { lexemes: true },
             },
           },
         },
@@ -46,66 +82,229 @@ export class ContentService {
     });
 
     if (!pack) {
-      throw new NotFoundException(`Пак с ID ${packId} не найден`);
+      this.logger.error(`Pack not found: ${packId}`, '', 'ContentService');
+      throw new NotFoundException(`Pack ${packId} not found`);
     }
+
+    this.logger.log(`Pack fetched: ${pack.title} (${pack.levels.length} levels)`, 'ContentService');
 
     return {
       id: pack.id,
-      slug: pack.slug,
       title: pack.title,
+      slug: pack.slug,
       description: pack.description,
-      language: pack.language,
-      difficulty: pack.difficulty,
-      icon: pack.icon,
       levels: pack.levels.map((level) => ({
         id: level.id,
         levelNumber: level.levelNumber,
         mode: level.mode,
         difficulty: level.difficulty,
+        timeLimit: level.timeLimit,
+        lives: level.lives,
+        targetScore: level.targetScore,
         lexemesCount: level._count.lexemes,
       })),
     };
   }
 
-  // Получить детали уровня с лексемами
-  async getLevelById(levelId: string) {
+  async generateLevel(
+    levelId: string,
+    userId: string,
+  ): Promise<LevelGenerationResponse> {
+    this.logger.log(`Generating level ${levelId} for user ${userId}`, 'ContentService');
+
     const level = await this.prisma.level.findUnique({
       where: { id: levelId },
       include: {
-        pack: {
-          select: {
-            id: true,
-            title: true,
-            slug: true,
-          },
-        },
         lexemes: {
           include: {
-            lexeme: true, // Получаем полные данные лексем
+            lexeme: true,
+          },
+        },
+        pack: {
+          include: {
+            lexemes: true,
           },
         },
       },
     });
 
     if (!level) {
-      throw new NotFoundException(`Уровень с ID ${levelId} не найден`);
+      this.logger.error(`Level not found: ${levelId}`, '', 'ContentService');
+      throw new NotFoundException(`Level ${levelId} not found`);
     }
+
+    const attemptCount = await this.prisma.levelAttempt.count({
+      where: { userId, levelId },
+    });
+
+    const seed = this.generateSeed(userId, attemptCount + 1);
+    const rng = this.createSeededRandom(seed);
+
+    this.logger.debug(
+      `Level generation params - attempt: ${attemptCount + 1}, seed: ${seed}`,
+      'ContentService',
+    );
+
+    const levelLexemes = this.seededShuffle(
+      level.lexemes.map((ll) => ll.lexeme),
+      rng,
+    );
+
+    const questions: GeneratedQuestion[] = [];
+    const questionTypes: QuestionType[] = ['meaning', 'form', 'context', 'anagram'];
+
+    for (const lexeme of levelLexemes) {
+      const type = questionTypes[Math.floor(rng() * questionTypes.length)];
+      const question = this.generateQuestion(
+        type,
+        lexeme,
+        level.pack.lexemes,
+        rng,
+      );
+      
+      if (question) {
+        questions.push(question);
+      }
+    }
+
+    this.logger.log(
+      `Level ${levelId} generated: ${questions.length} questions, seed: ${seed}`,
+      'ContentService',
+    );
 
     return {
       id: level.id,
       levelNumber: level.levelNumber,
       mode: level.mode,
       difficulty: level.difficulty,
-      pack: level.pack,
-      lexemes: level.lexemes.map((ll) => ({
-        id: ll.lexeme.id,
-        form: ll.lexeme.form,
-        meaning: ll.lexeme.meaning,
-        contexts: ll.lexeme.contexts,
-        difficulty: ll.lexeme.difficulty,
-        audio: ll.lexeme.audio,
-        image: ll.lexeme.image,
+      timeLimit: level.timeLimit,
+      lives: level.lives,
+      targetScore: level.targetScore,
+      seed,
+      questions,
+      lexemes: levelLexemes.map((l) => ({
+        id: l.id,
+        form: l.form,
+        meaning: l.meaning,
+        contexts: l.contexts,
+        difficulty: l.difficulty,
       })),
     };
+  }
+
+  private generateChoiceQuestion(
+    type: 'meaning' | 'form',
+    lexeme: Lexeme,
+    allLexemes: Lexeme[],
+    rng: () => number,
+  ): GeneratedQuestion {
+    const isMeaning = type === 'meaning';
+    const correctAnswer = isMeaning ? lexeme.meaning : lexeme.form;
+    const prompt = isMeaning ? lexeme.form : lexeme.meaning;
+    
+    const distractorPool = allLexemes
+      .filter((l) => l.id !== lexeme.id)
+      .map((l) => (isMeaning ? l.meaning : l.form));
+
+    const shuffled = this.seededShuffle([...distractorPool], rng);
+    const distractors = shuffled.slice(0, 3);
+    const options = this.seededShuffle([correctAnswer, ...distractors], rng);
+
+    return {
+      type,
+      lexemeId: lexeme.id,
+      prompt,
+      correctAnswer,
+      options,
+    };
+  }
+
+  private generateQuestion(
+    type: QuestionType,
+    lexeme: Lexeme,
+    allPackLexemes: Lexeme[],
+    rng: () => number,
+  ): GeneratedQuestion | null {
+    switch (type) {
+      case 'meaning':
+        return this.generateChoiceQuestion('meaning', lexeme, allPackLexemes, rng);
+      
+      case 'form':
+        return this.generateChoiceQuestion('form', lexeme, allPackLexemes, rng);
+      
+      case 'context':
+        return this.generateContextQuestion(lexeme, rng);
+      
+      case 'anagram':
+        return this.generateAnagramQuestion(lexeme);
+      
+      default:
+        this.logger.warn(`Unknown question type: ${type}`, 'ContentService');
+        return null;
+    }
+  }
+
+  private generateContextQuestion(
+    lexeme: Lexeme,
+    rng: () => number,
+  ): GeneratedQuestion | null {
+    if (!lexeme.contexts || lexeme.contexts.length === 0) {
+      this.logger.debug(`No contexts available for lexeme: ${lexeme.id}`, 'ContentService');
+      return null;
+    }
+
+    const context = lexeme.contexts[Math.floor(rng() * lexeme.contexts.length)];
+    const correctAnswer = lexeme.form;
+    const pattern = new RegExp(correctAnswer, 'gi');
+    const prompt = context.replace(pattern, '___');
+
+    return {
+      type: 'context',
+      lexemeId: lexeme.id,
+      prompt,
+      correctAnswer,
+      context,
+    };
+  }
+
+  private generateAnagramQuestion(lexeme: Lexeme): GeneratedQuestion {
+    return {
+      type: 'anagram',
+      lexemeId: lexeme.id,
+      prompt: lexeme.meaning,
+      correctAnswer: lexeme.form,
+    };
+  }
+
+  private generateSeed(userId: string, attemptNumber: number): number {
+    const userHash = this.hashString(userId);
+    return (userHash + attemptNumber * 1000000) % 2147483647;
+  }
+
+  private hashString(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash = hash & hash;
+    }
+    return Math.abs(hash);
+  }
+
+  private createSeededRandom(seed: number): () => number {
+    let currentSeed = seed;
+    return () => {
+      currentSeed = (currentSeed * 9301 + 49297) % 233280;
+      return currentSeed / 233280;
+    };
+  }
+
+  private seededShuffle<T>(array: T[], rng: () => number): T[] {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
   }
 }

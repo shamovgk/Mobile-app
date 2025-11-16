@@ -1,25 +1,42 @@
-import { Controller, Get, Param } from '@nestjs/common';
-import { ContentService } from './content.service';
+import { Controller, Get, Param, UseGuards, Request } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { ContentService, LevelGenerationResponse } from './content.service';
+import { LevelParamDto, PackParamDto } from './dto/level.dto';
 
+@ApiTags('content')
 @Controller('api/content')
 export class ContentController {
   constructor(private readonly contentService: ContentService) {}
 
-  // GET /api/content/packs
   @Get('packs')
+  @ApiOperation({ summary: 'Получить все паки' })
+  @ApiResponse({ status: 200, description: 'Список паков' })
   async getPacks() {
-    return this.contentService.getAllPacks();
+    return this.contentService.getPacks();
   }
 
-  // GET /api/content/packs/:packId
   @Get('packs/:packId')
-  async getPack(@Param('packId') packId: string) {
-    return this.contentService.getPackById(packId);
+  @ApiOperation({ summary: 'Получить информацию о паке' })
+  @ApiParam({ name: 'packId', description: 'ID пака', type: String })
+  @ApiResponse({ status: 200, description: 'Данные пака' })
+  @ApiResponse({ status: 404, description: 'Пак не найден' })
+  async getPack(@Param() params: PackParamDto) {
+    return this.contentService.getPack(params.packId);
   }
 
-  // GET /api/content/levels/:levelId
-  @Get('levels/:levelId')
-  async getLevel(@Param('levelId') levelId: string) {
-    return this.contentService.getLevelById(levelId);
+  @Get('levels/:levelId/generate')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Сгенерировать уровень' })
+  @ApiParam({ name: 'levelId', description: 'ID уровня', type: String })
+  @ApiResponse({ status: 200, description: 'Сгенерированный уровень' })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({ status: 404, description: 'Уровень не найден' })
+  async generateLevel(
+    @Request() req,
+    @Param() params: LevelParamDto,
+  ): Promise<LevelGenerationResponse> {
+    return this.contentService.generateLevel(params.levelId, req.user.id);
   }
 }

@@ -23,5 +23,5 @@ export class SubmitResultDto {
 
   @IsInt()
   @Min(1)
-  duration: number; // Секунды
+  duration: number;
 }

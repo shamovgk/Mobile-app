@@ -12,34 +12,56 @@ datasource db {
 // ============================================
 
 model User {
-  id        String   @id @default(cuid())
-  email     String?  @unique
-  passwordHash String?
+  id          String   @id @default(cuid())
   displayName String
-  avatar    String?
-  isGuest   Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  avatar      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  profile             Profile?
-  levelProgress       UserLevelProgress[]
-  attempts            LevelAttempt[]
-  achievements        UserAchievement[]
+  profile       Profile?
+  levelProgress UserLevelProgress[]
+  attempts      LevelAttempt[]
+  achievements  UserAchievement[]
+  
+  registeredUser RegisteredUser?
+  guestUser      GuestUser?
 
   @@map("users")
 }
 
-model Profile {
+model RegisteredUser {
+  id           String  @id @default(cuid())
+  userId       String  @unique
+  email        String  @unique
+  passwordHash String
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("registered_users")
+}
+
+model GuestUser {
   id        String   @id @default(cuid())
   userId    String   @unique
-  totalXp   Int      @default(0)
-  level     Int      @default(1)
-  streak    Int      @default(0)
-  lastPlayedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) // ✅ Для отслеживания старых гостей
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([createdAt]) // ✅ Для быстрого поиска старых гостей
+  @@map("guest_users")
+}
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+model Profile {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  totalXp      Int       @default(0)
+  level        Int       @default(1)
+  streak       Int       @default(0)
+  lastPlayedAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("profiles")
 }
@@ -60,8 +82,8 @@ model Pack {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  levels      Level[]
-  levelProgress UserLevelProgress[]
+  levels  Level[]
+  lexemes Lexeme[]
 
   @@map("packs")
 }
@@ -72,42 +94,53 @@ model Level {
   levelNumber Int
   mode        String
   difficulty  String
+  timeLimit   Int?
+  lives       Int?
+  targetScore Int      @default(100)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  pack        Pack     @relation(fields: [packId], references: [id], onDelete: Cascade)
-  lexemes     LevelLexeme[]
+  pack          Pack                @relation(fields: [packId], references: [id], onDelete: Cascade)
+  lexemes       LevelLexeme[]
   levelProgress UserLevelProgress[]
-  attempts    LevelAttempt[]
+  attempts      LevelAttempt[]
 
   @@unique([packId, levelNumber])
+  @@index([packId])
   @@map("levels")
 }
 
 model Lexeme {
-  id          String   @id @default(cuid())
-  form        String   @unique
-  meaning     String
-  contexts    String[]
-  difficulty  Int      @default(1)
-  audio       String?
-  image       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  packId     String
+  form       String
+  meaning    String
+  contexts   String[]
+  difficulty Int      @default(1)
+  // ❌ УДАЛЕНЫ audio и image - не используются
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  levels      LevelLexeme[]
+  pack   Pack          @relation(fields: [packId], references: [id], onDelete: Cascade)
+  levels LevelLexeme[]
 
+  @@unique([packId, form])
+  @@index([packId])
+  @@index([difficulty])
+  @@index([packId, difficulty])
   @@map("lexemes")
 }
 
 model LevelLexeme {
-  levelId   String
-  lexemeId  String
+  levelId  String
+  lexemeId String
 
-  level     Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
-  lexeme    Lexeme   @relation(fields: [lexemeId], references: [id], onDelete: Cascade)
+  level  Level  @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  lexeme Lexeme @relation(fields: [lexemeId], references: [id], onDelete: Cascade)
 
   @@id([levelId, lexemeId])
+  @@index([levelId])
+  @@index([lexemeId])
   @@map("level_lexemes")
 }
 
@@ -116,39 +149,44 @@ model LevelLexeme {
 // ============================================
 
 model UserLevelProgress {
-  id        String   @id @default(cuid())
-  userId    String
-  levelId   String
-  packId    String
-  bestScore       Int      @default(0)
-  highestStars    Int      @default(0)
-  timesPlayed     Int      @default(0)
-  completedAt     DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id           String    @id @default(cuid())
+  userId       String
+  levelId      String
+  bestScore    Int       @default(0)
+  highestStars Int       @default(0)
+  timesPlayed  Int       @default(0)
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  level     Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
-  pack      Pack     @relation(fields: [packId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level Level @relation(fields: [levelId], references: [id], onDelete: Cascade)
 
   @@unique([userId, levelId])
+  @@index([userId])
+  @@index([levelId])
+  @@index([userId, completedAt])
   @@map("user_level_progress")
 }
 
 model LevelAttempt {
-  id        String   @id @default(cuid())
-  userId    String
-  levelId   String
-  score           Int
-  stars           Int      @default(0)
-  correctAnswers  Int
-  wrongAnswers    Int
-  duration        Int
-  completedAt     DateTime @default(now())
+  id             String   @id @default(cuid())
+  userId         String
+  levelId        String
+  score          Int
+  stars          Int      @default(0)
+  correctAnswers Int
+  wrongAnswers   Int
+  duration       Int
+  completedAt    DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  level     Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level Level @relation(fields: [levelId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([levelId])
+  @@index([completedAt])
+  @@index([userId, levelId, completedAt])
   @@map("level_attempts")
 }
 
@@ -168,7 +206,7 @@ model Achievement {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  users       UserAchievement[]
+  users UserAchievement[]
 
   @@map("achievements")
 }
@@ -179,9 +217,10 @@ model UserAchievement {
   achievementId String
   unlockedAt    DateTime @default(now())
 
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
 
   @@unique([userId, achievementId])
+  @@index([userId])
   @@map("user_achievements")
 }

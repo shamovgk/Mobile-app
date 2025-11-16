@@ -1,163 +1,443 @@
 {
   "id": "pack-env-1",
   "title": "Окружающая среда - базовый",
-  "description": "Изучите базовую лексику об окружающей среде",
+  "description": "Изучите лексику об окружающей среде и экологии",
   "language": "en",
   "difficulty": "easy",
   "icon": "🌍",
   "order": 1,
+  "lexemes": [
+    {
+      "form": "nature",
+      "meaning": "природа",
+      "contexts": ["We must protect nature", "Nature is beautiful", "I love walking in nature"],
+      "difficulty": 1
+    },
+    {
+      "form": "environment",
+      "meaning": "окружающая среда",
+      "contexts": ["Pollution harms the environment", "We care about the environment", "The environment needs protection"],
+      "difficulty": 1
+    },
+    {
+      "form": "pollution",
+      "meaning": "загрязнение",
+      "contexts": ["Air pollution is dangerous", "Water pollution affects fish", "We must reduce pollution"],
+      "difficulty": 1
+    },
+    {
+      "form": "recycle",
+      "meaning": "перерабатывать",
+      "contexts": ["Please recycle plastic bottles", "We recycle paper at home", "Recycling helps the planet"],
+      "difficulty": 1
+    },
+    {
+      "form": "waste",
+      "meaning": "отходы",
+      "contexts": ["Reduce food waste", "Household waste goes to landfills", "Industrial waste pollutes rivers"],
+      "difficulty": 1
+    },
+    {
+      "form": "climate",
+      "meaning": "климат",
+      "contexts": ["Climate change is real", "The climate is getting warmer", "Arctic climate is harsh"],
+      "difficulty": 1
+    },
+    {
+      "form": "forest",
+      "meaning": "лес",
+      "contexts": ["Forests produce oxygen", "The Amazon is a tropical forest", "Many animals live in forests"],
+      "difficulty": 1
+    },
+    {
+      "form": "ocean",
+      "meaning": "океан",
+      "contexts": ["The ocean is full of life", "Pacific Ocean is the largest", "Plastic pollutes our oceans"],
+      "difficulty": 1
+    },
+    {
+      "form": "energy",
+      "meaning": "энергия",
+      "contexts": ["Solar energy is renewable", "We need clean energy", "Wind energy is growing"],
+      "difficulty": 1
+    },
+    {
+      "form": "species",
+      "meaning": "вид (животного/растения)",
+      "contexts": ["Many species are endangered", "New species are discovered", "This species lives underwater"],
+      "difficulty": 2
+    },
+    {
+      "form": "sustainable",
+      "meaning": "устойчивый",
+      "contexts": ["We need sustainable development", "Sustainable farming protects soil", "Buy sustainable products"],
+      "difficulty": 2
+    },
+    {
+      "form": "biodiversity",
+      "meaning": "биоразнообразие",
+      "contexts": ["Biodiversity is essential for life", "Rainforests have high biodiversity", "Loss of biodiversity is alarming"],
+      "difficulty": 2
+    },
+    {
+      "form": "ecosystem",
+      "meaning": "экосистема",
+      "contexts": ["Every ecosystem has a balance", "Coral reefs are fragile ecosystems", "Humans impact ecosystems"],
+      "difficulty": 2
+    },
+    {
+      "form": "renewable",
+      "meaning": "возобновляемый",
+      "contexts": ["Wind is a renewable energy source", "Switch to renewable power", "Renewable resources never run out"],
+      "difficulty": 2
+    },
+    {
+      "form": "conservation",
+      "meaning": "сохранение",
+      "contexts": ["Wildlife conservation is important", "Conservation efforts are growing", "National parks aid conservation"],
+      "difficulty": 2
+    },
+    {
+      "form": "deforestation",
+      "meaning": "вырубка лесов",
+      "contexts": ["Deforestation destroys habitats", "Stop illegal deforestation", "Deforestation causes erosion"],
+      "difficulty": 3
+    },
+    {
+      "form": "carbon",
+      "meaning": "углерод",
+      "contexts": ["Carbon emissions cause warming", "Reduce your carbon footprint", "Trees absorb carbon dioxide"],
+      "difficulty": 3
+    },
+    {
+      "form": "greenhouse",
+      "meaning": "парниковый",
+      "contexts": ["Greenhouse gases trap heat", "The greenhouse effect is natural", "Reduce greenhouse emissions"],
+      "difficulty": 3
+    },
+    {
+      "form": "extinction",
+      "meaning": "вымирание",
+      "contexts": ["Many animals face extinction", "Prevent species extinction", "Dinosaurs went extinct millions of years ago"],
+      "difficulty": 3
+    },
+    {
+      "form": "habitat",
+      "meaning": "среда обитания",
+      "contexts": ["Protect animal habitats", "Polar bears' habitat is melting", "Every species needs a habitat"],
+      "difficulty": 3
+    },
+    {
+      "form": "atmosphere",
+      "meaning": "атмосфера",
+      "contexts": ["Earth's atmosphere protects us", "Ozone layer is part of atmosphere", "Pollution damages the atmosphere"],
+      "difficulty": 2
+    },
+    {
+      "form": "wildlife",
+      "meaning": "дикая природа",
+      "contexts": ["Wildlife photography is popular", "Protect local wildlife", "Safari shows African wildlife"],
+      "difficulty": 2
+    },
+    {
+      "form": "endangered",
+      "meaning": "находящийся под угрозой",
+      "contexts": ["Tigers are endangered animals", "Endangered species need protection", "Many plants are endangered too"],
+      "difficulty": 2
+    },
+    {
+      "form": "toxic",
+      "meaning": "токсичный",
+      "contexts": ["Toxic waste is dangerous", "This chemical is toxic", "Toxic fumes harm lungs"],
+      "difficulty": 2
+    },
+    {
+      "form": "landfill",
+      "meaning": "свалка",
+      "contexts": ["Landfills are filling up", "Avoid sending waste to landfills", "Landfills produce methane gas"],
+      "difficulty": 2
+    },
+    {
+      "form": "compost",
+      "meaning": "компост",
+      "contexts": ["Compost your food scraps", "Compost enriches soil", "Garden compost reduces waste"],
+      "difficulty": 2
+    },
+    {
+      "form": "solar",
+      "meaning": "солнечный",
+      "contexts": ["Solar panels generate electricity", "Solar power is clean", "Install solar panels on roofs"],
+      "difficulty": 1
+    },
+    {
+      "form": "wind",
+      "meaning": "ветер",
+      "contexts": ["Wind turbines produce energy", "The wind is strong today", "Wind power is renewable"],
+      "difficulty": 1
+    },
+    {
+      "form": "river",
+      "meaning": "река",
+      "contexts": ["The river flows to the sea", "Rivers provide fresh water", "Don't pollute rivers"],
+      "difficulty": 1
+    },
+    {
+      "form": "mountain",
+      "meaning": "гора",
+      "contexts": ["Mountains have snow on top", "Climbing mountains is challenging", "Mountains create their own weather"],
+      "difficulty": 1
+    },
+    {
+      "form": "desert",
+      "meaning": "пустыня",
+      "contexts": ["Deserts are very dry", "Camels live in deserts", "The Sahara is a huge desert"],
+      "difficulty": 1
+    },
+    {
+      "form": "glacier",
+      "meaning": "ледник",
+      "contexts": ["Glaciers are melting rapidly", "Glaciers store fresh water", "Antarctic glaciers are massive"],
+      "difficulty": 2
+    },
+    {
+      "form": "temperature",
+      "meaning": "температура",
+      "contexts": ["Global temperature is rising", "Today's temperature is high", "Temperature affects weather"],
+      "difficulty": 1
+    },
+    {
+      "form": "weather",
+      "meaning": "погода",
+      "contexts": ["The weather is changing", "Extreme weather events increase", "Weather forecasts help planning"],
+      "difficulty": 1
+    },
+    {
+      "form": "storm",
+      "meaning": "шторм",
+      "contexts": ["The storm damaged houses", "Hurricanes are powerful storms", "Storm clouds are dark"],
+      "difficulty": 1
+    },
+    {
+      "form": "drought",
+      "meaning": "засуха",
+      "contexts": ["The drought lasted months", "Droughts cause crop failure", "Water shortage during drought"],
+      "difficulty": 2
+    },
+    {
+      "form": "flood",
+      "meaning": "наводнение",
+      "contexts": ["Heavy rain caused floods", "Floods destroy farmland", "Climate change increases floods"],
+      "difficulty": 2
+    },
+    {
+      "form": "plastic",
+      "meaning": "пластик",
+      "contexts": ["Plastic takes centuries to decompose", "Reduce plastic usage", "Plastic bags harm marine life"],
+      "difficulty": 1
+    },
+    {
+      "form": "organic",
+      "meaning": "органический",
+      "contexts": ["Buy organic vegetables", "Organic farming avoids chemicals", "Organic waste can be composted"],
+      "difficulty": 2
+    },
+    {
+      "form": "pesticide",
+      "meaning": "пестицид",
+      "contexts": ["Pesticides kill insects", "Organic farms don't use pesticides", "Pesticides can harm bees"],
+      "difficulty": 2
+    },
+    {
+      "form": "fertilizer",
+      "meaning": "удобрение",
+      "contexts": ["Fertilizers help plants grow", "Chemical fertilizers pollute water", "Use natural fertilizers"],
+      "difficulty": 2
+    },
+    {
+      "form": "agriculture",
+      "meaning": "сельское хозяйство",
+      "contexts": ["Agriculture feeds the world", "Modern agriculture uses technology", "Sustainable agriculture is important"],
+      "difficulty": 2
+    },
+    {
+      "form": "urban",
+      "meaning": "городской",
+      "contexts": ["Urban areas are growing", "Urban pollution is worse", "Urban planning affects environment"],
+      "difficulty": 2
+    },
+    {
+      "form": "rural",
+      "meaning": "сельский",
+      "contexts": ["Rural areas have cleaner air", "Rural communities depend on farming", "Rural landscapes are peaceful"],
+      "difficulty": 2
+    },
+    {
+      "form": "infrastructure",
+      "meaning": "инфраструктура",
+      "contexts": ["Green infrastructure helps cities", "Infrastructure needs upgrading", "Transportation infrastructure impacts emissions"],
+      "difficulty": 3
+    },
+    {
+      "form": "emission",
+      "meaning": "выброс",
+      "contexts": ["Reduce carbon emissions", "Car emissions pollute air", "Factory emissions are regulated"],
+      "difficulty": 2
+    },
+    {
+      "form": "footprint",
+      "meaning": "след (экологический)",
+      "contexts": ["Calculate your carbon footprint", "Reduce your environmental footprint", "Flying increases your footprint"],
+      "difficulty": 2
+    },
+    {
+      "form": "ozone",
+      "meaning": "озон",
+      "contexts": ["Ozone layer protects Earth", "Ozone hole is recovering", "Ozone is a form of oxygen"],
+      "difficulty": 3
+    },
+    {
+      "form": "radiation",
+      "meaning": "радиация",
+      "contexts": ["Solar radiation reaches Earth", "UV radiation can cause cancer", "Nuclear radiation is dangerous"],
+      "difficulty": 3
+    },
+    {
+      "form": "fossil",
+      "meaning": "ископаемое",
+      "contexts": ["Fossil fuels pollute", "Dinosaur fossils are ancient", "Move away from fossil energy"],
+      "difficulty": 2
+    },
+    {
+      "form": "consumption",
+      "meaning": "потребление",
+      "contexts": ["Reduce energy consumption", "Water consumption is increasing", "Mindful consumption helps planet"],
+      "difficulty": 2
+    },
+    {
+      "form": "preservation",
+      "meaning": "сохранение",
+      "contexts": ["Nature preservation is crucial", "Historic preservation protects culture", "Preservation efforts are underfunded"],
+      "difficulty": 2
+    },
+    {
+      "form": "restoration",
+      "meaning": "восстановление",
+      "contexts": ["Forest restoration is ongoing", "Ecosystem restoration takes time", "Coral reef restoration projects"],
+      "difficulty": 3
+    },
+    {
+      "form": "migration",
+      "meaning": "миграция",
+      "contexts": ["Bird migration is seasonal", "Climate change affects migration", "Animal migration patterns are changing"],
+      "difficulty": 2
+    },
+    {
+      "form": "adaptation",
+      "meaning": "адаптация",
+      "contexts": ["Species adapt to climate change", "Adaptation is necessary for survival", "Human adaptation to environment"],
+      "difficulty": 3
+    }
+  ],
   "levels": [
     {
       "levelNumber": 1,
       "mode": "lives",
       "difficulty": "easy",
       "allowedTypes": ["meaning"],
-      "lexemes": [
-        {
-          "form": "nature",
-          "meaning": "природа",
-          "contexts": ["We must protect nature"],
-          "difficulty": 1
-        },
-        {
-          "form": "environment",
-          "meaning": "окружающая среда",
-          "contexts": ["Pollution harms the environment"],
-          "difficulty": 1
-        },
-        {
-          "form": "pollution",
-          "meaning": "загрязнение",
-          "contexts": ["Air pollution is dangerous"],
-          "difficulty": 1
-        },
-        {
-          "form": "recycle",
-          "meaning": "перерабатывать",
-          "contexts": ["Please recycle plastic bottles"],
-          "difficulty": 1
-        },
-        {
-          "form": "waste",
-          "meaning": "отходы",
-          "contexts": ["Reduce food waste"],
-          "difficulty": 1
-        }
-      ]
+      "lexemeCount": 5,
+      "difficultyRange": [1, 1]
     },
     {
       "levelNumber": 2,
       "mode": "lives",
       "difficulty": "easy",
-      "allowedTypes": ["meaning", "form"],
-      "lexemes": [
-        {
-          "form": "climate",
-          "meaning": "климат",
-          "contexts": ["Climate change is real"],
-          "difficulty": 1
-        },
-        {
-          "form": "forest",
-          "meaning": "лес",
-          "contexts": ["Forests produce oxygen"],
-          "difficulty": 1
-        },
-        {
-          "form": "ocean",
-          "meaning": "океан",
-          "contexts": ["The ocean is full of life"],
-          "difficulty": 1
-        },
-        {
-          "form": "energy",
-          "meaning": "энергия",
-          "contexts": ["Solar energy is renewable"],
-          "difficulty": 1
-        },
-        {
-          "form": "species",
-          "meaning": "вид (животного/растения)",
-          "contexts": ["Many species are endangered"],
-          "difficulty": 2
-        }
-      ]
+      "allowedTypes": ["meaning"],
+      "lexemeCount": 6,
+      "difficultyRange": [1, 1]
     },
     {
       "levelNumber": 3,
       "mode": "lives",
-      "difficulty": "medium",
-      "allowedTypes": ["meaning", "form", "context"],
-      "lexemes": [
-        {
-          "form": "sustainable",
-          "meaning": "устойчивый",
-          "contexts": ["We need sustainable development"],
-          "difficulty": 2
-        },
-        {
-          "form": "biodiversity",
-          "meaning": "биоразнообразие",
-          "contexts": ["Biodiversity is essential for life"],
-          "difficulty": 2
-        },
-        {
-          "form": "ecosystem",
-          "meaning": "экосистема",
-          "contexts": ["Every ecosystem has a balance"],
-          "difficulty": 2
-        },
-        {
-          "form": "renewable",
-          "meaning": "возобновляемый",
-          "contexts": ["Wind is a renewable energy source"],
-          "difficulty": 2
-        },
-        {
-          "form": "conservation",
-          "meaning": "сохранение",
-          "contexts": ["Wildlife conservation is important"],
-          "difficulty": 2
-        }
-      ]
+      "difficulty": "easy",
+      "allowedTypes": ["meaning", "form"],
+      "lexemeCount": 7,
+      "difficultyRange": [1, 2]
     },
     {
       "levelNumber": 4,
+      "mode": "lives",
+      "difficulty": "easy",
+      "allowedTypes": ["meaning", "form"],
+      "lexemeCount": 8,
+      "difficultyRange": [1, 2]
+    },
+    {
+      "levelNumber": 5,
+      "mode": "lives",
+      "difficulty": "medium",
+      "allowedTypes": ["meaning", "form", "context"],
+      "lexemeCount": 8,
+      "difficultyRange": [1, 2]
+    },
+    {
+      "levelNumber": 6,
+      "mode": "lives",
+      "difficulty": "medium",
+      "allowedTypes": ["meaning", "form", "context"],
+      "lexemeCount": 9,
+      "difficultyRange": [2, 2]
+    },
+    {
+      "levelNumber": 7,
+      "mode": "timed",
+      "difficulty": "medium",
+      "allowedTypes": ["meaning", "form", "context"],
+      "lexemeCount": 10,
+      "difficultyRange": [2, 3],
+      "timeLimit": 90
+    },
+    {
+      "levelNumber": 8,
+      "mode": "timed",
+      "difficulty": "medium",
+      "allowedTypes": ["meaning", "form", "context", "anagram"],
+      "lexemeCount": 10,
+      "difficultyRange": [2, 3],
+      "timeLimit": 90
+    },
+    {
+      "levelNumber": 9,
+      "mode": "lives",
+      "difficulty": "hard",
+      "allowedTypes": ["meaning", "form", "context", "anagram"],
+      "lexemeCount": 12,
+      "difficultyRange": [2, 3]
+    },
+    {
+      "levelNumber": 10,
       "mode": "timed",
       "difficulty": "hard",
       "allowedTypes": ["meaning", "form", "context", "anagram"],
-      "lexemes": [
-        {
-          "form": "deforestation",
-          "meaning": "вырубка лесов",
-          "contexts": ["Deforestation destroys habitats"],
-          "difficulty": 3
-        },
-        {
-          "form": "carbon",
-          "meaning": "углерод",
-          "contexts": ["Carbon emissions cause warming"],
-          "difficulty": 3
-        },
-        {
-          "form": "greenhouse",
-          "meaning": "парниковый",
-          "contexts": ["Greenhouse gases trap heat"],
-          "difficulty": 3
-        },
-        {
-          "form": "extinction",
-          "meaning": "вымирание",
-          "contexts": ["Many animals face extinction"],
-          "difficulty": 3
-        },
-        {
-          "form": "habitat",
-          "meaning": "среда обитания",
-          "contexts": ["Protect animal habitats"],
-          "difficulty": 3
-        }
-      ]
+      "lexemeCount": 12,
+      "difficultyRange": [3, 3],
+      "timeLimit": 120
+    },
+    {
+      "levelNumber": 11,
+      "mode": "lives",
+      "difficulty": "hard",
+      "allowedTypes": ["meaning", "form", "context", "anagram"],
+      "lexemeCount": 15,
+      "difficultyRange": [1, 3]
+    },
+    {
+      "levelNumber": 12,
+      "mode": "timed",
+      "difficulty": "hard",
+      "allowedTypes": ["meaning", "form", "context", "anagram"],
+      "lexemeCount": 15,
+      "difficultyRange": [2, 3],
+      "timeLimit": 150
     }
   ]
 }
